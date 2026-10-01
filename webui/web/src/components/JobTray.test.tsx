@@ -1,5 +1,6 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 import { qk } from '@/api/queries'
 import { makeClient, mockApi, renderWithClient } from '@/test-utils'
@@ -10,7 +11,7 @@ import { JobTray } from './JobTray'
 function trayWith(jobs: ReturnType<typeof makeJob>[]) {
   const client = makeClient()
   client.setQueryData(qk.jobs, jobs)
-  renderWithClient(<JobTray />, client)
+  renderWithClient(<MemoryRouter><JobTray /></MemoryRouter>, client)
 }
 
 describe('JobTray', () => {
@@ -49,5 +50,27 @@ describe('JobTray', () => {
     await userEvent.click(screen.getByTestId('job-cancel-job_b'))
     await waitFor(() => expect(fetchMock.mock.calls.some(([u, i]) => u === '/api/jobs/job_b/cancel' && i?.method === 'POST')).toBe(true))
     await waitFor(() => expect(screen.queryByTestId('job-cancel-job_b')).not.toBeInTheDocument())
+  })
+
+  it('separates the jobs with dividers and ends with a link to the status page', async () => {
+    trayWith([
+      makeJob({ id: 'job_a', state: 'running' }),
+      makeJob({ id: 'job_b', state: 'queued', queue_position: 1 }),
+      makeJob({ id: 'job_c', state: 'queued', queue_position: 2 }),
+    ])
+    await userEvent.click(screen.getByRole('button', { name: '작업 트레이' }))
+    expect(screen.getAllByTestId('job-divider')).toHaveLength(2) // between 3 jobs, none before the first
+    const link = screen.getByTestId('job-tray-status-link')
+    expect(link).toHaveAttribute('href', '/status')
+    expect(link).toHaveTextContent('상태 보기')
+    await userEvent.click(link)
+    await waitFor(() => expect(screen.queryByTestId('job-tray-status-link')).not.toBeInTheDocument()) // popover closes on navigation
+  })
+
+  it('keeps the status link when nothing is active', async () => {
+    trayWith([])
+    await userEvent.click(screen.getByRole('button', { name: '작업 트레이' }))
+    expect(screen.getByTestId('job-tray-status-link')).toHaveAttribute('href', '/status')
+    expect(screen.queryByTestId('job-divider')).not.toBeInTheDocument()
   })
 })
