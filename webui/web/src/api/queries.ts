@@ -6,7 +6,14 @@ export type Job = components['schemas']['Job']
 export type PlanResponse = components['schemas']['PlanResponse']
 export type IdentityResponse = components['schemas']['IdentityResponse']
 export type AttemptList = components['schemas']['AttemptList']
-export type Direction = 'left' | 'right' | 'front' | 'back'
+export type AttemptDetail = components['schemas']['AttemptDetail']
+export type AttemptSummary = components['schemas']['AttemptSummary']
+/** Server directions (routes/deps.py `Direction`). */
+export type Direction = 'down' | 'up' | 'right' | 'left'
+
+export const actionPath = (cid: string, action: string) => `/api/characters/${cid}/actions/${action}`
+/** `?direction=` is sent only for plans with 2+ directions (docs/10 5.1); callers pass undefined otherwise. */
+export const dirQuery = (direction?: Direction) => (direction ? `?direction=${direction}` : '')
 
 // The server declares these responses as plain dicts, so OpenAPI has no schema; typed by hand from routes/health.py
 // and routes/characters.py.
@@ -55,6 +62,8 @@ export const qk = {
   identity: (cid: string) => ['characters', cid, 'identity'] as const,
   attemptsOf: (cid: string) => ['characters', cid, 'attempts'] as const,
   attempts: (cid: string, action: string, direction?: Direction) => ['characters', cid, 'attempts', action, direction ?? null] as const,
+  attempt: (cid: string, action: string, direction: Direction | undefined, aid: string) =>
+    ['characters', cid, 'attempts', action, direction ?? null, aid] as const,
 }
 
 export const HEALTH_REFETCH_MS = 60_000
@@ -85,9 +94,16 @@ export const useIdentity = (cid: string) =>
 export const useAttempts = (cid: string, action: string, direction?: Direction) =>
   useQuery({
     queryKey: qk.attempts(cid, action, direction),
-    queryFn: () =>
-      api<AttemptList>(`/api/characters/${cid}/actions/${action}/attempts${direction ? `?direction=${direction}` : ''}`),
+    queryFn: () => api<AttemptList>(`${actionPath(cid, action)}/attempts${dirQuery(direction)}`),
     placeholderData: keepPreviousData,
+  })
+
+/** One attempt with its files, process.json and qc-report.json. `aid` null = nothing selected yet. */
+export const useAttempt = (cid: string, action: string, aid: string | null, direction?: Direction) =>
+  useQuery({
+    queryKey: qk.attempt(cid, action, direction, aid ?? ''),
+    queryFn: () => api<AttemptDetail>(`${actionPath(cid, action)}/attempts/${aid}${dirQuery(direction)}`),
+    enabled: aid !== null,
   })
 
 export const fetchActiveJobs = () => api<{ jobs: Job[] }>('/api/jobs?active=1').then((r) => r.jobs)

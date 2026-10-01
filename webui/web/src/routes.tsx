@@ -16,7 +16,7 @@ export const routes = [
       { path: '/new', element: <NewCharacter /> },
       { path: '/c/:cid/identity', element: <Identity /> },
       { path: '/c/:cid/plan', element: <Plan /> },
-      { path: '/c/:cid/studio/:action?', element: <Studio /> },
+      { path: '/c/:cid/studio/:action?/:direction?', element: <Studio /> },
       { path: '/c/:cid/export', element: <Export /> },
       { path: '/status', element: <Status /> },
     ],
