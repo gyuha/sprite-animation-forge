@@ -13,7 +13,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Pause, Play } from 'lucide-react'
+import { Pause, Play } from 'lucide-react'
 import { useCharacter, usePlan } from '@/api/queries'
 import { AnimationPlayer, type Overlay } from '@/components/AnimationPlayer'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -156,21 +156,13 @@ export default function Viewer() {
   const tileRows = useMemo(() => (p ? buildTiles(cid, p, rows) : []), [cid, p, rows])
 
   const open = (tile: Tile) => { setZoom(tile); setZoomFrame(0); setZoomPlaying(true) }
-  const header = (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button asChild variant="ghost" size="sm"><Link to="/"><ArrowLeft /> {cid}</Link></Button>
-      <h1 className="text-xl font-semibold">애니메이션</h1>
-    </div>
-  )
-
-  if (plan.isPending || character.isPending) return <div className="space-y-4" data-testid="viewer-page">{header}<Skeleton className="h-96 w-full" /></div>
+  if (plan.isPending || character.isPending) return <div className="space-y-4" data-testid="viewer-page"><Skeleton className="h-96 w-full" /></div>
   const empty = !p || character.isError || playableCount(tileRows) === 0
   const cell = (p?.cell ?? { w: 128, h: 128 }) as { w: number; h: number }
   const column = Math.max(MIN_TILE, cell.w * scale + TILE_PADDING)
 
   return (
     <div className="space-y-5" data-testid="viewer-page">
-      {header}
       {empty ? (
         <Alert data-testid="viewer-empty">
           <AlertTitle>재생할 애니메이션이 없습니다</AlertTitle>

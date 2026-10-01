@@ -30,7 +30,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowLeft, Copy, Upload } from 'lucide-react'
+import { Copy, Upload } from 'lucide-react'
 import {
   useAcceptAttempt, useGenerateAction, usePreviewPrompt, useProcessAttempt, useSaveParams, useUploadRaw, type UnitTarget,
 } from '@/api/mutations'
@@ -111,7 +111,6 @@ export default function Studio() {
   return (
     <div className="space-y-4" data-testid="studio-page">
       <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="sm"><Link to="/"><ArrowLeft /> {cid}</Link></Button>
         <Tabs value={action} onValueChange={goAction}>
           <TabsList>
             {order.map((a) => {
