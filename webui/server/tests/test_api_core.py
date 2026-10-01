@@ -101,10 +101,9 @@ def test_api_core_factory_default_root_env(monkeypatch, tmp_path):
     assert create_app().state.root == tmp_path / "envroot"
 
 
-def test_api_core_cli_has_no_host_option(capsys):
+def test_api_core_cli_host_defaults_to_loopback_and_accepts_opt_in():
     from sprite_forge_web.cli import build_parser
 
-    with pytest.raises(SystemExit) as e:
-        build_parser().parse_args(["--host", "0.0.0.0"])
-    assert e.value.code == 2
+    assert build_parser().parse_args([]).host == "127.0.0.1"
+    assert build_parser().parse_args(["--host", "0.0.0.0"]).host == "0.0.0.0"
     assert build_parser().parse_args([]).port == 8765

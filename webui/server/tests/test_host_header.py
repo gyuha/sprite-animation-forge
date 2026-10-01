@@ -27,3 +27,9 @@ def test_host_header_applies_to_files_and_post(app):
     c = TestClient(app, base_url="http://127.0.0.1:8765")
     assert c.get("/files/hero/manifest.json", headers={"Host": "evil.com"}).status_code == 403
     assert c.post("/api/characters", json={"id": "a"}, headers={"Host": "evil.com"}).status_code == 403
+
+
+def test_host_header_guard_disabled_when_exposed(root):
+    app = create_app(root=root, static_dir=None, allow_any_host=True)
+    c = TestClient(app, base_url="http://127.0.0.1:8765")
+    assert c.get("/api/presets", headers={"Host": "192.168.0.5:8765"}).status_code == 200

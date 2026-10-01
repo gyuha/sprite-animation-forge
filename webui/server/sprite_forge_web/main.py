@@ -45,16 +45,18 @@ async def lifespan(app: FastAPI):
 
 
 def create_app(root: Path | str | None = None, static_dir: Path | str | None = DEFAULT_STATIC_DIR,
-               health_ttl: float = 60.0, clock=time.monotonic, provider_factory=None) -> FastAPI:
+               health_ttl: float = 60.0, clock=time.monotonic, provider_factory=None,
+               allow_any_host: bool = False) -> FastAPI:
     """``provider_factory``: zero-arg callable returning the image provider of each job (default
-    ``CodexCliProvider()``, which reads ``SPRITE_FORGE_CODEX_BIN`` / ``CODEX_HOME`` per job)."""
+    ``CodexCliProvider()``, which reads ``SPRITE_FORGE_CODEX_BIN`` / ``CODEX_HOME`` per job).
+    ``allow_any_host`` disables the Host header guard (set by the CLI when a non-loopback ``--host`` is used)."""
     app = FastAPI(title="sprite-forge-web", lifespan=lifespan)
     app.state.root = Path(root or os.environ.get("SPRITE_FORGE_ROOT") or "./sprites")
     app.state.bus = sse.EventBus()
     app.state.jobs = JobManager(app.state.bus, provider_factory)
     app.state.health_cache = HealthCache(health_ttl, clock)
     errors.install(app)
-    app.add_middleware(HostGuardMiddleware)
+    app.add_middleware(HostGuardMiddleware, allow_any=allow_any_host)
     for r in ROUTERS:
         app.include_router(r)
     if static_dir is not None and Path(static_dir).is_dir():

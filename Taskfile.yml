@@ -11,19 +11,25 @@ tasks:
     silent: true
 
   sync:
-    desc: 의존성 설치 (uv sync)
+    desc: 의존성 설치 (uv sync + pnpm install)
     cmds:
       - uv sync
+      - task: web:install
 
   test:
-    desc: 전체 테스트 (live 제외, 약 100초)
+    desc: Python 전체 테스트 (live 제외, 약 2분)
     cmds:
       - uv run pytest -m "not live" -q
 
   test:quick:
-    desc: 파이프라인·단위 테스트만 빠르게 (CLI subprocess 테스트 제외)
+    desc: 파이프라인·단위 테스트만 빠르게 (CLI subprocess·서버 테스트 제외)
     cmds:
-      - uv run pytest -q -k "not cli and not scenario and not determinism and not codex_commands"
+      - uv run pytest -q sprite-animation-forge/tests -k "not cli and not scenario and not determinism and not codex_commands"
+
+  test:server:
+    desc: Web API 서버 테스트 (webui/server/tests)
+    cmds:
+      - uv run pytest -q webui/server/tests
 
   test:scenario:
     desc: 인수 시나리오 1~6
@@ -82,18 +88,24 @@ tasks:
       - uv run sprite-forge-web
 
   dev:web:
-    desc: Vite 개발 서버만 실행 (5173, /api·/files는 8765로 프록시)
+    desc: Vite 개발 서버만 실행 (0.0.0.0:5273 고정, LAN 접속 가능, /api·/files는 8765로 프록시)
     cmds:
-      - pnpm --dir webui/web dev
+      - pnpm --dir webui/web dev --host 0.0.0.0 --port 5273 --strictPort
 
   dev:
-    desc: 서버(8765) + Vite(5173) 동시 실행, Ctrl-C로 둘 다 종료
+    desc: 서버(8765) + Vite(5273) 동시 실행 → http://localhost:5273, Ctrl-C로 둘 다 종료
     deps: [dev:server, dev:web]
 
   e2e:
     desc: Playwright E2E 스모크 (가짜 codex, 프로덕션 빌드를 서버가 서빙; 먼저 빌드)
     cmds:
       - pnpm --dir webui/web e2e
+
+  start:
+    desc: 프로덕션 빌드 후 단일 서버 실행 (http://127.0.0.1:8765)
+    cmds:
+      - task: build
+      - uv run sprite-forge-web
 
   test:all:
     desc: Python 전체(live 제외) + 프런트엔드 단위 + E2E
