@@ -113,7 +113,7 @@ def _check_invariants(cid: str, plan: dict) -> None:
     dirs = plan["directions"]
     for name, act in plan["actions"].items():
         r, c = (int(x) for x in act["grid"].split("x"))
-        if r * c < act["frames"]:
+        if r * c < act["frames"] and act.get("method", "grid") != "breathe":
             raise bad(f"{name}: grid {act['grid']} cannot hold {act['frames']} frames")
         if not set(act.get("directions", dirs)) <= set(dirs):
             raise bad(f"{name}: directions not a subset of {dirs}")

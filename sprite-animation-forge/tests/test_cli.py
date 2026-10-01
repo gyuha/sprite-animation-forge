@@ -129,7 +129,7 @@ def test_cli_plan_output_and_manifest_assumptions(forge):
     out = forge.ok("plan", "hero", "--actions", "idle,fall", "--cell", "256x256", "--set", "fall.fps=9")
     assert out["estimated_seconds"] == 180
     plan = out["plan"]
-    assert plan["actions"]["fall"] == {"frames": 2, "grid": "1x2", "loop": True, "fps": 9, "anchor": "feet",
+    assert plan["actions"]["fall"] == {"method": "grid", "frames": 2, "grid": "1x2", "loop": True, "fps": 9, "anchor": "feet",
                                        "scale_strategy": "fit", "x_anchor": "mass", "components": "largest"}
     assert plan["cell"] == {"w": 256, "h": 256}
     on_disk = json.loads((forge.root / "hero/animation-plan.json").read_text())

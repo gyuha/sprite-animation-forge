@@ -81,8 +81,17 @@ ASYMMETRY_WORDS = re.compile(r"\b(left|right|one[- ]sided|asymmetric\w*)\b", re.
 OVERRIDE_KEYS = {
     "kind": "str", "frames": "int", "grid": "str", "loop": "bool", "fps": "int", "anchor": "str",
     "x_anchor": "str", "scale_strategy": "str", "components": "str", "qc_profile": "str",
-    "motion": "str", "poses": "pipes", "directions": "csv",
+    "motion": "str", "poses": "pipes", "directions": "csv", "method": "str",
 }
+# generation method per action (.forge/CONTEXT.md "생성 방식"): grid = one sheet per call; breathe = one still +
+# deterministic breathing; video = generated clip converted to sprites (needs a connected video provider)
+METHODS = ("grid", "breathe", "video")
+BREATHE_FRAMES = 6
+
+
+def video_method_available() -> bool:
+    """True once a video provider is connected (docs/13-video-api-setup.md). Not wired yet."""
+    return False
 
 
 def grid_for(frames: int) -> str:
@@ -135,7 +144,10 @@ def parse_overrides(items) -> dict[str, dict]:
         action, key, raw = m.groups()
         if key not in OVERRIDE_KEYS:
             raise ForgeError("invalid_override", f"unknown key {key!r}; choose from {sorted(OVERRIDE_KEYS)}")
-        out.setdefault(action, {})[key] = _coerce(key, raw)
+        value = _coerce(key, raw)
+        if key == "method" and value not in METHODS:
+            raise ForgeError("invalid_override", f"method={raw!r}; choose from {list(METHODS)}")
+        out.setdefault(action, {})[key] = value
     return out
 
 
@@ -166,12 +178,22 @@ def _build_action(name: str, ov: dict) -> dict:
     action.update({k: v for k, v in ov.items() if k != "kind"})
     if "frames" in ov and "grid" not in ov:
         action["grid"] = grid_for(action["frames"])
+    method = action.setdefault("method", "grid")
+    if method == "video" and not video_method_available():
+        raise ForgeError("method_unavailable", f"{name}: method=video needs a connected video provider "
+                         "(see docs/13-video-api-setup.md)", EXIT_PRECONDITION)
+    if method == "breathe":
+        if kind == "fx":
+            raise ForgeError("invalid_params", f"{name}: method=breathe is only for body actions")
+        action["grid"] = "1x1"  # generation is one still pose; `frames` is the number of output frames
+        if "frames" not in ov:
+            action["frames"] = BREATHE_FRAMES
     # key order: stable, readable
-    order = ["kind", "frames", "grid", "loop", "fps", "anchor", "scale_strategy", "x_anchor",
+    order = ["kind", "method", "frames", "grid", "loop", "fps", "anchor", "scale_strategy", "x_anchor",
              "components", "qc_profile", "motion", "poses", "directions"]
     action = {k: action[k] for k in order if k in action}
     r, c = (int(x) for x in action["grid"].split("x"))
-    if r * c < action["frames"] or r < 1 or c < 1:
+    if (r * c < action["frames"] and method != "breathe") or r < 1 or c < 1:
         raise ForgeError("invalid_params", f"{name}: grid {action['grid']} cannot hold {action['frames']} frames")
     return action
 

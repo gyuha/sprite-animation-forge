@@ -25,7 +25,9 @@ export const BUNDLE_LABELS: Record<string, string> = {
 export const CELL_OPTIONS = ['64x64', '96x96', '128x128', '192x192', '256x256']
 export const SECONDS_PER_CALL = 90
 
-export interface ActionValues { frames: number; fps: number; loop: boolean; grid: string }
+export type GenerationMethod = 'grid' | 'breathe' | 'video'
+export const BREATHE_FRAMES = 6
+export interface ActionValues { frames: number; fps: number; loop: boolean; grid: string; method: GenerationMethod }
 
 export interface PlanDraft {
   bundle: string
@@ -72,9 +74,12 @@ const gridHolds = (grid: string, frames: number) => {
 export function actionValues(name: string, d: PlanDraft, presets: Presets): ActionValues {
   const base = presets.frame_presets[name] ?? { frames: 4, fps: 10, loop: false, grid: '2x2' }
   const e = d.edits[name] ?? {}
-  const frames = e.frames ?? base.frames
-  const grid = e.grid && gridHolds(e.grid, frames) ? e.grid : (presets.grids[String(frames)] ?? base.grid)
-  return { frames, fps: e.fps ?? base.fps, loop: e.loop ?? base.loop, grid }
+  const method = e.method ?? 'grid'
+  // breathe: one still pose is generated (1x1) and `frames` output frames are made from it
+  const frames = e.frames ?? (method === 'breathe' ? BREATHE_FRAMES : base.frames)
+  const grid = method === 'breathe' ? '1x1'
+    : e.grid && gridHolds(e.grid, frames) ? e.grid : (presets.grids[String(frames)] ?? base.grid)
+  return { frames, fps: e.fps ?? base.fps, loop: e.loop ?? base.loop, grid, method }
 }
 
 /** Codex-generated units: every action x every direction, minus the mirror-derived left. */
@@ -97,10 +102,11 @@ export function buildCreateRequest(d: PlanDraft, presets: Presets): PlanCreateBo
   for (const name of d.actions) {
     const e = d.edits[name]
     if (!e) continue
+    if (e.method !== undefined && e.method !== 'grid') set.push(`${name}.method=${e.method}`)
     if (e.frames !== undefined) set.push(`${name}.frames=${e.frames}`)
     if (e.fps !== undefined) set.push(`${name}.fps=${e.fps}`)
     if (e.loop !== undefined) set.push(`${name}.loop=${e.loop}`)
-    if (e.grid !== undefined) set.push(`${name}.grid=${actionValues(name, d, presets).grid}`)
+    if (e.grid !== undefined && e.method !== 'breathe') set.push(`${name}.grid=${actionValues(name, d, presets).grid}`)
   }
   const bundle = expandBundle(presets, d.bundle)
   const body: PlanCreateBody = { cell: d.cell, set, view: d.view as PlanCreateBody['view'] }
@@ -116,8 +122,8 @@ export function buildCreateRequest(d: PlanDraft, presets: Presets): PlanCreateBo
 export function draftFromPlan(plan: Plan, presets: Presets): PlanDraft {
   const edits: PlanDraft['edits'] = {}
   for (const name of plan.order as string[]) {
-    const { frames, fps, loop, grid } = plan.actions[name]
-    edits[name] = { frames, fps, loop, grid }
+    const { frames, fps, loop, grid, method } = plan.actions[name]
+    edits[name] = { frames, fps, loop, grid, method: (method ?? 'grid') as GenerationMethod }
   }
   return {
     bundle: detectBundle(presets, plan.order),

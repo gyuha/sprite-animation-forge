@@ -61,6 +61,8 @@ export interface Presets {
   asset_types: string[]
   art_styles: string[]
   directions: string[]
+  /** generation method availability (grid | breathe | video); `video` needs a connected video provider */
+  methods?: Record<string, { available: boolean; reason: string | null }>
 }
 
 /** Query keys. Everything of a character lives under ['characters', cid, ...] (see sse.ts for invalidation). */

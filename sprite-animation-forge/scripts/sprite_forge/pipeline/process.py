@@ -44,8 +44,10 @@ Notes on ambiguous spots
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -269,3 +271,39 @@ def process_sheet(
     }
     (out_dir / "process.json").write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return ProcessResult(data, frames, sheet, clean, out_dir)
+
+
+BREATHE_AMPLITUDE = 0.04
+
+
+def process_breathe(raw_path, out_dir, params: ProcessParams | None = None, n_frames: int = 6,
+                    profile: ScaleProfile | dict | None = None, amplitude: float = BREATHE_AMPLITUDE) -> ProcessResult:
+    """generation method ``breathe``: process the single still like a 1x1 sheet, then expand it into
+    ``n_frames`` deterministic breathing frames (effects/breathe.py). Outputs and process.json have the same
+    shape as a grid attempt, with ``params.method = "breathe"`` and ``derived.frames`` repeated per frame."""
+    from ..effects.breathe import breathe_frames
+
+    out_dir = Path(out_dir)
+    p = dataclasses.replace(params or ProcessParams(), rows=1, cols=1, frames=1)
+    base = process_sheet(raw_path, out_dir, p, profile)
+    still = base.frames[0]
+    if not (still[..., 3] >= 64).any():
+        raise PipelineError("empty_frame", "the generated still pose is empty")
+    frames, info = breathe_frames(still, n_frames, amplitude)
+
+    shutil.rmtree(out_dir / "frames", ignore_errors=True)
+    data = json.loads(json.dumps(base.data))
+    outputs = {"clean.png": data["outputs"]["clean.png"]}
+    for i, frame in enumerate(frames):
+        outputs[f"frames/{i:03d}.png"] = _save_png(frame, out_dir / "frames" / f"{i:03d}.png")
+    sheet = compose_sheet(frames)
+    outputs["sheet.png"] = _save_png(sheet, out_dir / "sheet.png")
+    rec = data["derived"]["frames"][0]
+    data["derived"]["frames"] = [dict(rec, index=i) for i in range(n_frames)]
+    data["params"].update(frames=n_frames, method="breathe",
+                          breathe={"amplitude": amplitude, "neck_row": info["neck_row"], "neck_found": info["found"],
+                                   "dh": info["dh"]})
+    data["outputs"] = outputs
+    data["warnings"] = list(data["warnings"]) + info["warnings"]
+    (out_dir / "process.json").write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return ProcessResult(data, frames, sheet, base.clean, out_dir)

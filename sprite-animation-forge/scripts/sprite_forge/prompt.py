@@ -226,6 +226,10 @@ def _action_block(plan: dict, profile: dict | None, action: str, multi_direction
     )
 
 
+def _still_block(title: str) -> str:
+    return _fill("action_still.txt", title=title.replace(" still pose", ""))
+
+
 def _recovery_block(codes: list[str], frames: int, key_hex: str, identity_fields) -> str:
     table = _sections("recovery.txt")
     fields = ", ".join(identity_fields)
@@ -284,12 +288,17 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
     act = plan["actions"][action]
     frames = act["frames"]
     rows, cols = (int(x) for x in act["grid"].split("x"))
+    breathe = act.get("method", "grid") == "breathe"
+    if breathe:  # one still pose is generated; the output frames are produced by effects/breathe.py
+        frames, rows, cols = 1, 1, 1
     key_hex = plan["key_color"].upper()
     multi = len(plan["directions"]) > 1
     if "edge_touch" in codes:
         margin_pct = EDGE_TOUCH_MARGIN_PCT
     lib = MOTION_LIBRARY.get(action)
     title = (lib["title"] if lib else action.replace("_", " "))
+    if breathe:
+        title = f"{title} still pose"
 
     warnings = []
     if act.get("kind") == "fx":
@@ -306,7 +315,7 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
     ]
     if len(refs) > 1:
         blocks.append(_template("direction_reference.txt"))
-    blocks.append(_action_block(plan, profile, action, multi))
+    blocks.append(_still_block(title) if breathe else _action_block(plan, profile, action, multi))
     if extra:
         blocks.append(_fill("additional_direction.txt", extra=extra))
     if codes:

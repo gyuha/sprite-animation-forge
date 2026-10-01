@@ -63,7 +63,7 @@ from .fsutil import (
 )
 from .pipeline import PipelineError
 from .pipeline.chroma import KEY_MAGENTA, remove_background
-from .pipeline.process import process_sheet
+from .pipeline.process import process_breathe, process_sheet
 from .pipeline.scale import ScaleProfile
 from . import recovery, schemas
 from .pipeline.measure import measure_frame
@@ -248,7 +248,10 @@ def process_attempt(cd, plan, action, direction, attempt=None, sets=None) -> dic
     with attempt_lock(adir):
         shutil.rmtree(adir / "frames", ignore_errors=True)  # derived output, rebuilt below
         try:
-            result = process_sheet(adir / "raw.png", adir, params, profile)
+            if act.get("method", "grid") == "breathe":
+                result = process_breathe(adir / "raw.png", adir, params, act["frames"], profile)
+            else:
+                result = process_sheet(adir / "raw.png", adir, params, profile)
         except PipelineError as exc:
             raise ForgeError(exc.code, str(exc)) from None
         report = run_qc(result, action=action, params=params, profile=profile, attempt=attempt,

@@ -85,6 +85,22 @@ describe('Plan', () => {
     expect(lastBody(fetchMock, 'POST', '/api/characters/hero/plan')).toMatchObject({ actions: ['idle', 'walk', 'attack'], set: ['walk.frames=8'], view: 'side' })
   })
 
+  it('offers a generation method per action: breathe is POSTed, video is disabled with its reason', async () => {
+    const fetchMock = mockApi(routes('side'))
+    renderPage()
+    await userEvent.click(await screen.findByTestId('action-toggle-idle'))
+    expect(screen.getByTestId('action-method-idle')).toHaveTextContent('격자')
+    expect(screen.getByTestId('action-method-video-hint')).toHaveTextContent('동영상 API가 연결되지 않았습니다')
+    await userEvent.click(screen.getByTestId('action-method-idle'))
+    expect(await screen.findByRole('option', { name: '동영상 (API)' })).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(screen.getByRole('option', { name: '호흡 (정지 1장)' }))
+    expect(screen.getByTestId('action-grid-idle')).toBeDisabled() // a still is always 1x1
+    expect(screen.getByTestId('action-frames-idle')).toHaveValue(6)
+    await userEvent.click(screen.getByTestId('plan-save'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(true))
+    expect(lastBody(fetchMock, 'POST', '/api/characters/hero/plan').set).toContain('idle.method=breathe')
+  })
+
   it('warns when a character colour conflicts with the magenta key colour', async () => {
     mockApi(routes('side', { 'GET /api/characters/hero/identity': identity(['#E000E0']) }))
     renderPage()
