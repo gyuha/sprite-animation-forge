@@ -62,16 +62,16 @@ export default function NewCharacter() {
   const idError = id ? validateCharacterId(id) : null
   const idValid = !!id && !idError
 
-  async function ensureCharacter() {
-    if (createdId === id) return // a retry after a later step failed must not create it twice
-    await createCharacter.mutateAsync({ id, view, art_style: artStyle, asset_type: 'character' })
-    setCreatedId(id)
+  async function ensureCharacter(cid = id) {
+    if (createdId === cid) return // a retry after a later step failed must not create it twice
+    await createCharacter.mutateAsync({ id: cid, view, art_style: artStyle, asset_type: 'character' })
+    setCreatedId(cid)
   }
 
   /** Analysis needs Codex; if it cannot start the user continues and edits the identity by hand. */
-  async function startAnalyze() {
+  async function startAnalyze(cid = id) {
     try {
-      await analyze.mutateAsync({ cid: id })
+      await analyze.mutateAsync({ cid })
     } catch (e) {
       toast.warning(`Identity 분석을 시작하지 못했습니다: ${message(e)}`)
     }
@@ -88,13 +88,22 @@ export default function NewCharacter() {
     }
   }
 
-  const createFromImage = () =>
+  const createFromImage = (cid = id, image = file!) =>
     run(async () => {
-      await ensureCharacter()
-      await uploadReference.mutateAsync({ cid: id, file: file! })
-      await startAnalyze()
-      navigate(`/c/${id}/plan`)
+      await ensureCharacter(cid)
+      await uploadReference.mutateAsync({ cid, file: image })
+      await startAnalyze(cid)
+      navigate(`/c/${cid}/plan`)
     })
+
+  /** Picking an image is itself "만들기" (docs/09 3.1) while the id is the untouched suggestion; otherwise the button creates. */
+  function pickImage(f: File) {
+    setFile(f)
+    if (idTouched) return
+    const suggested = uniqueId(slugify(f.name), characters.data?.map((c) => c.id) ?? [])
+    setId(suggested)
+    if (!validateCharacterId(suggested)) void createFromImage(suggested, f)
+  }
 
   const generateCandidates = () =>
     run(async () => {
@@ -157,13 +166,10 @@ export default function NewCharacter() {
         <TabsContent value="image" className="space-y-4">
           <DropZone
             disabled={busy}
-            onFile={(f) => {
-              setFile(f)
-              if (!idTouched) setId(uniqueId(slugify(f.name), characters.data?.map((c) => c.id) ?? []))
-            }}
+            onFile={pickImage}
           />
           {commonFields}
-          <Button disabled={!file || !idValid || busy} onClick={createFromImage} data-testid="create-from-image">
+          <Button disabled={!file || !idValid || busy} onClick={() => createFromImage()} data-testid="create-from-image">
             {busy ? '만드는 중…' : '만들기'}
           </Button>
         </TabsContent>

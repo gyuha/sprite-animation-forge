@@ -10,5 +10,5 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
   server: { proxy: { '/api': API, '/files': API } },
-  test: { environment: 'jsdom', setupFiles: ['./src/test-setup.ts'], globals: false },
+  test: { include: ['src/**/*.test.{ts,tsx}'], environment: 'jsdom', setupFiles: ['./src/test-setup.ts'], globals: false },
 })

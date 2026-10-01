@@ -21,7 +21,7 @@ describe('NewCharacter', () => {
     const png = new File(['x'], 'hero.png', { type: 'image/png' })
     fireEvent.change(screen.getByTestId('dropzone-input'), { target: { files: [png] } })
     expect(id).toHaveValue('hero') // suggested from the file name
-    expect(screen.getByTestId('create-from-image')).toBeEnabled()
+    await waitFor(() => expect(screen.getByTestId('create-from-image')).toBeEnabled()) // the auto-create attempt (unmocked) has ended
 
     await userEvent.clear(id)
     await userEvent.type(id, 'My_Hero')
@@ -38,7 +38,7 @@ describe('NewCharacter', () => {
     expect(screen.getByTestId('new-character-id')).toHaveValue('hero-2')
   })
 
-  it('creates the character, uploads the reference, starts the analysis and moves on to the plan', async () => {
+  it('picking the image creates the character, uploads the reference, starts the analysis and moves on to the plan', async () => {
     const fetchMock = mockApi({
       'GET /api/characters': { characters: [] },
       'POST /api/characters': { character: { id: 'hero', created_at: '', next_step: 'reference' } },
@@ -47,7 +47,7 @@ describe('NewCharacter', () => {
     })
     renderPage()
     fireEvent.change(screen.getByTestId('dropzone-input'), { target: { files: [new File(['x'], 'hero.png', { type: 'image/png' })] } })
-    await userEvent.click(screen.getByTestId('create-from-image'))
+    // no click on "만들기": picking the image creates the character (docs/09 3.1)
 
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/c/hero/plan'))
     expect(lastBody(fetchMock, 'POST', '/api/characters')).toEqual({ id: 'hero', view: 'side', art_style: 'project_native', asset_type: 'character' })

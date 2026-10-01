@@ -90,6 +90,14 @@ def test_fake_codex_image_and_grid_selection(env, tmp_path):
     assert run(env, argv_for(tmp_path), FAKE_CODEX_IMAGE="bogus").returncode == 2
 
 
+def test_fake_codex_grid_from_prompt_unless_env_overrides(env, tmp_path):
+    prompt = "<<<PROMPT\nGRID RULES\n- 2 rows x 3 columns = 6 equal cells.\nPROMPT>>>\n"
+    (img,) = images(env, thread_id(run(env, argv_for(tmp_path), stdin=prompt)))
+    assert Image.open(img).size == (768, 512)  # parsed from the prompt
+    (img,) = images(env, thread_id(run(env, argv_for(tmp_path), stdin=prompt, FAKE_CODEX_GRID="1x2")))
+    assert Image.open(img).size == (512, 256)  # the env var wins
+
+
 @pytest.mark.parametrize("mutate", [
     lambda a: a[1:],                                       # no 'exec'
     lambda a: a[:-1],                                      # no final '-'

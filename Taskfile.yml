@@ -89,3 +89,15 @@ tasks:
   dev:
     desc: 서버(8765) + Vite(5173) 동시 실행, Ctrl-C로 둘 다 종료
     deps: [dev:server, dev:web]
+
+  e2e:
+    desc: Playwright E2E 스모크 (가짜 codex, 프로덕션 빌드를 서버가 서빙; 먼저 빌드)
+    cmds:
+      - pnpm --dir webui/web e2e
+
+  test:all:
+    desc: Python 전체(live 제외) + 프런트엔드 단위 + E2E
+    cmds:
+      - task: test
+      - task: web:test
+      - task: e2e

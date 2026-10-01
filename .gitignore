@@ -5,3 +5,6 @@ sprites/
 sprite-animation-forge/tests/fixtures/codex-samples/
 node_modules/
 webui/web/dist/
+webui/web/test-results/
+webui/web/playwright-report/
+webui/web/blob-report/

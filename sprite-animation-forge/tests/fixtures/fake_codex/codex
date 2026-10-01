@@ -7,7 +7,8 @@ Environment:
                     image_gen_failed | exit_1 | hang | invalid_png | config_warnings |
                     invalid_json | bad_schema   (the last two only matter with --output-schema)
   FAKE_CODEX_IMAGE  synthetic variant from tests/fixtures/synthetic/make.py (default: clean)
-  FAKE_CODEX_GRID   optional "ROWSxCOLS" of the synthetic sheet (default: 2x2)
+  FAKE_CODEX_GRID   optional "ROWSxCOLS" of the synthetic sheet. Unset: taken from the prompt's GRID RULES line
+                    ("- R rows x C columns = ..."), 2x2 when the prompt has none
   FAKE_CODEX_CALL_LOG optional file; one line `image_gen <thread_id>` is appended per image-generation
                     invocation (not for doctor probes or --output-schema identity calls)
   FAKE_CODEX_DELAY_S optional float; seconds to sleep after the first agent_message event, before the image /
@@ -25,6 +26,7 @@ Exit codes: 2 on any argv/stdin contract violation, 1 for exit_1 mode, else 0.
 import base64
 import json
 import os
+import re
 import sys
 import time
 import uuid
@@ -194,7 +196,12 @@ def main():
     from make import make_sheet  # synthetic generator (fixtures/synthetic/make.py)
 
     variant = os.environ.get("FAKE_CODEX_IMAGE", "clean")
-    rows, cols = (int(v) for v in os.environ.get("FAKE_CODEX_GRID", "2x2").lower().split("x"))
+    grid = os.environ.get("FAKE_CODEX_GRID")
+    if grid:
+        rows, cols = (int(v) for v in grid.lower().split("x"))
+    else:
+        m = re.search(r"^- (\d+) rows? x (\d+) columns?", prompt, re.M)
+        rows, cols = (int(m[1]), int(m[2])) if m else (2, 2)
     try:
         sheet = make_sheet(variant, rows=rows, cols=cols)
     except ValueError as e:
