@@ -1,4 +1,4 @@
-# template_version: action_prompt@2
+# template_version: action_prompt@3
 Create a 2x2 sprite animation grid of a 2D game character: idle breathing animation, 4 frames.
 
 REFERENCE IDENTITY
@@ -18,7 +18,7 @@ Match the art style, line weight, and shading of the reference image exactly.
 Top-down RPG view from about 45 degrees above, character facing right, profile. Only the right side of the body is visible.
 
 DIRECTION REFERENCE
-- The second attached image shows the same character from another direction.
+- The second attached image shows one single pose of the same character from another direction.
 - Keep the identical proportions, clothing, colors, equipment, and art style.
 - Redraw only what the new facing direction reveals (for example the back of the cloak or the side profile). Do not redesign the character.
 

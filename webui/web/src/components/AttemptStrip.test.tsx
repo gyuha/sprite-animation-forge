@@ -46,4 +46,10 @@ describe('AttemptStrip', () => {
     fireEvent.click(screen.getByTestId('attempt-001'))
     expect(h.onSelect).toHaveBeenCalledWith('001')
   })
+
+  it('shows the prompt template version of each attempt (only when recorded)', () => {
+    setup([att('001', { prompt_version: 'action_prompt@3' }), att('002')], '001')
+    expect(screen.getByTestId('attempt-prompt-version-001')).toHaveTextContent('action_prompt@3')
+    expect(screen.queryByTestId('attempt-prompt-version-002')).not.toBeInTheDocument()
+  })
 })

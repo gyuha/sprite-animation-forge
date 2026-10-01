@@ -198,7 +198,7 @@ def test_generate_happy_path_creates_attempt_files(forge, ref_png):
         assert (adir / name).exists(), name
     gen = json.loads((adir / "generation.json").read_text())
     assert gen["status"] == "succeeded" and gen["provider"] == "codex-cli"
-    assert gen["prompt_template_version"] == "action_prompt@2" and gen["prompt_file"] == "prompt.txt"
+    assert gen["prompt_template_version"] == "action_prompt@3" and gen["prompt_file"] == "prompt.txt"
     assert gen["prompt_sha256"] == sha(adir / "prompt.txt")
     assert [r["source"] for r in gen["references"]] == ["reference/character-keyed.png"]
     assert gen["references"][0]["sha256"] == sha(cd / "reference/character-keyed.png")
@@ -301,9 +301,9 @@ def test_generate_direction_reference_attached_for_non_representative_direction(
     adir = cd / "walk/up/attempts/001"
     gen = json.loads((adir / "generation.json").read_text())
     assert [r["file"] for r in gen["references"]] == ["ref-01.png", "ref-02.png"]
-    assert [r["source"] for r in gen["references"]] == ["reference/character-keyed.png", "walk/down/raw.png"]
+    assert [r["source"] for r in gen["references"]] == ["reference/character-keyed.png", "walk/down/frames/000.png"]
     assert gen["argv"].count("-i") == 2 and gen["argv"][gen["argv"].index("-i") + 1].endswith("ref-01.png")
-    assert sha(adir / "ref-02.png") == sha(cd / "walk/down/raw.png")
+    assert sha(adir / "ref-02.png") != sha(cd / "walk/down/raw.png")  # one adopted frame, not the whole raw sheet (see test_direction_reference_frame)
     assert "DIRECTION REFERENCE" in (adir / "prompt.txt").read_text()
     assert "DIRECTION REFERENCE" not in (cd / "walk/down/attempts/001/prompt.txt").read_text()
 

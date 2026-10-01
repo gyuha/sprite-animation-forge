@@ -14,9 +14,9 @@ Public API (``cd`` = character directory ``<root>/<cid>``)
 
 Notes on ambiguous spots
 ------------------------
-* The direction reference (``Image 2``) is the representative unit's accepted ``raw.png`` (key-colour
-  background like the keyed character), not its processed ``sheet.png``; docs/03 section 10 only says "sheet".
-  It is copied unchanged (no <=1024px resize). If that unit was not accepted yet: ``no_direction_reference`` (exit 3).
+* The direction reference (``Image 2``) is ONE adopted frame (``frames/000.png``) of the representative unit,
+  enlarged and composited on the key colour (``direction_reference_image``); a whole sheet dilutes the facing lock.
+  If that unit was not accepted yet: ``no_direction_reference`` (exit 3).
 * ``generation.json`` is written by the provider; right after the call we amend ``prompt_template_version``
   and make ``references[].source`` character-dir relative, then leave it alone (immutable afterwards).
 * ``reference generate --count N`` exits 2 only when every attempt failed; otherwise the failed ones are
@@ -31,7 +31,10 @@ from __future__ import annotations
 
 import contextlib
 import re
+import tempfile
 from pathlib import Path
+
+from PIL import Image
 
 from . import manifest as mf
 from .errors import EXIT_PRECONDITION, EXIT_PROVIDER, ForgeError
@@ -62,8 +65,30 @@ def record_usage(cd, usage) -> None:
     mf.update(cd, apply)
 
 
-def _run_attempt(cd, provider, adir: Path, pr: PromptResult, refs: list[Path], timeout: int):
-    """Write prompt.txt, call the provider, amend generation.json, record usage."""
+def direction_reference_image(cd, unit: str, key_hex: str, out_dir, index: int = 0, target: int = 512) -> Path:
+    """The direction reference (``Image 2``): ONE adopted frame of the representative unit, enlarged to ~``target`` px
+    and placed on the key colour like the keyed character. A multi-pose sheet dilutes the facing lock (sprite-gen's
+    measurement), and the raw sheet is not a good reference anyway. Raises ``no_direction_reference`` (exit 3)
+    when the unit has no adopted frames."""
+    frames = sorted((Path(cd) / unit / "frames").glob("*.png"))
+    if not frames:
+        raise ForgeError("no_direction_reference", f"accept {unit} first (its adopted frame is the direction reference)",
+                         EXIT_PRECONDITION)
+    img = Image.open(frames[min(index, len(frames) - 1)]).convert("RGBA")
+    factor = max(1, target // max(img.size))
+    if factor > 1:
+        img = img.resize((img.width * factor, img.height * factor), Image.NEAREST)
+    key = tuple(int(key_hex[i:i + 2], 16) for i in (1, 3, 5))
+    out = Image.new("RGB", img.size, key)
+    out.paste(img, mask=img.getchannel("A"))
+    path = Path(out_dir) / "direction-reference.png"
+    out.save(path, format="PNG", optimize=False, compress_level=6)
+    return path
+
+
+def _run_attempt(cd, provider, adir: Path, pr: PromptResult, refs: list[Path], timeout: int, labels=None):
+    """Write prompt.txt, call the provider, amend generation.json, record usage. ``labels`` maps a reference path
+    outside the character directory (a temporary file) to the name recorded in generation.json."""
     cd = Path(cd)
     atomic_write_text(adir / "prompt.txt", pr.text)
     result = provider.generate(GenerationRequest(pr.text, refs, adir, timeout))
@@ -71,6 +96,9 @@ def _run_attempt(cd, provider, adir: Path, pr: PromptResult, refs: list[Path], t
     if meta:
         meta["prompt_template_version"] = pr.template_version
         for ref in meta.get("references", []):
+            if labels and ref["source"] in labels:
+                ref["source"] = labels[ref["source"]]
+                continue
             with contextlib.suppress(ValueError):
                 ref["source"] = Path(ref["source"]).relative_to(cd).as_posix()
         atomic_write_json(adir / "generation.json", meta)
@@ -94,30 +122,29 @@ def generate_unit(cd, plan, profile, action, direction=None, extra=None, recover
     if profile is None:
         raise ForgeError("no_profile", "run identity analyze first", EXIT_PRECONDITION)
     pr = build_prompt(plan, profile, action, direction, extra, recovery)
-    refs = []
-    for role in pr.references_needed:
-        if role == "character":
-            refs.append(keyed)
-            continue
-        src = cd / role.split(":", 1)[1] / "raw.png"
-        if not src.exists():
-            raise ForgeError("no_direction_reference",
-                             f"accept {role.split(':', 1)[1]} first (it is the direction reference)", EXIT_PRECONDITION)
-        refs.append(src)
-
     provider = provider or CodexCliProvider()
-    with codex_lock(cd):
-        attempt, adir = allocate_attempt(cd / unit / "attempts")
-        fields = {"provider": provider.name, "recovery": list(dict.fromkeys(recovery or ())),
-                  "extra": (extra or "").strip() or None}
-        mf.update(cd, lambda m: _attempt_entry(m, unit, _kind(plan, action), attempt,
-                                               generation_status="running", **fields))
-        try:
-            result = _run_attempt(cd, provider, adir, pr, refs, timeout)
-        except Exception:
-            mf.update(cd, lambda m: _attempt_entry(m, unit, _kind(plan, action), attempt, generation_status="failed"))
-            raise
-        mf.update(cd, lambda m: _attempt_entry(m, unit, _kind(plan, action), attempt, generation_status=result.status))
+    with tempfile.TemporaryDirectory(prefix="sprite-forge-ref-") as tmp:
+        refs, labels = [], {}
+        for role in pr.references_needed:
+            if role == "character":
+                refs.append(keyed)
+                continue
+            ref_unit = role.split(":", 1)[1]
+            path = direction_reference_image(cd, ref_unit, plan["key_color"], tmp)
+            refs.append(path)
+            labels[str(path)] = f"{ref_unit}/frames/000.png"
+        with codex_lock(cd):
+            attempt, adir = allocate_attempt(cd / unit / "attempts")
+            fields = {"provider": provider.name, "recovery": list(dict.fromkeys(recovery or ())),
+                      "extra": (extra or "").strip() or None}
+            mf.update(cd, lambda m: _attempt_entry(m, unit, _kind(plan, action), attempt,
+                                                   generation_status="running", **fields))
+            try:
+                result = _run_attempt(cd, provider, adir, pr, refs, timeout, labels)
+            except Exception:
+                mf.update(cd, lambda m: _attempt_entry(m, unit, _kind(plan, action), attempt, generation_status="failed"))
+                raise
+            mf.update(cd, lambda m: _attempt_entry(m, unit, _kind(plan, action), attempt, generation_status=result.status))
     if result.status != "succeeded":
         raise _fail(result, attempt=attempt, unit=unit)
     return {"attempt": attempt, "unit": unit, "status": result.status}

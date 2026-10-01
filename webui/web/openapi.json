@@ -339,6 +339,17 @@
             ],
             "title": "Generation Status"
           },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
           "provider": {
             "anyOf": [
               {

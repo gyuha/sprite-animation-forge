@@ -574,6 +574,8 @@ export interface components {
             extra?: string | null;
             /** Generation Status */
             generation_status?: string | null;
+            /** Prompt Version */
+            prompt_version?: string | null;
             /** Provider */
             provider?: string | null;
             /** Qc Status */

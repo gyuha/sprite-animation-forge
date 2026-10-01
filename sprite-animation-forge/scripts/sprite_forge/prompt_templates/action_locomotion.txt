@@ -1,0 +1,1 @@
+Show the {action} as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.

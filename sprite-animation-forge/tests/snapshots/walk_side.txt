@@ -1,4 +1,4 @@
-# template_version: action_prompt@2
+# template_version: action_prompt@3
 Create a 2x3 sprite animation grid of a 2D game character: walk cycle, 6 frames.
 
 REFERENCE IDENTITY
@@ -28,6 +28,7 @@ Frame sequence:
 6. passing (opposite leg)
 The last frame must flow seamlessly back into frame 1.
 Animate in place: the character does not travel across the cell.
+Show the walk as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.
 
 CONSISTENCY RULES
 - Identical character scale and camera distance in every cell.

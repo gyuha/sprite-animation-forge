@@ -55,7 +55,7 @@ from importlib import resources
 from .errors import ForgeError
 from .plan import DIRECTIONS_BY_VIEW, resolve_unit
 
-PROMPT_TEMPLATE_VERSION = "action_prompt@2"
+PROMPT_TEMPLATE_VERSION = "action_prompt@3"
 MAX_PROMPT_CHARS = 6000
 MAX_EXTRA_CHARS = 500
 EDGE_TOUCH_MARGIN_PCT = 15
@@ -206,7 +206,10 @@ def _sequence(action: str, act: dict, lib: dict | None, frames: int, loop: bool)
     return rules["oneshot_custom"][""].format(frames=frames)
 
 
-def _action_block(plan: dict, profile: dict | None, action: str, multi_direction: bool) -> str:
+LOCOMOTION_ACTIONS = ("walk", "run")
+
+
+def _action_block(plan: dict, profile: dict | None, action: str, multi_direction: bool, direction: str | None = None) -> str:
     act = plan["actions"][action]
     frames, loop = act["frames"], act["loop"]
     lib = MOTION_LIBRARY.get(action)
@@ -223,6 +226,8 @@ def _action_block(plan: dict, profile: dict | None, action: str, multi_direction
         sequence=_sequence(action, act, lib, frames, loop),
         loop_line=loop_line,
         in_place_line="" if act.get("kind") == "fx" else _template("action_in_place.txt"),
+        locomotion_line=_template("action_locomotion.txt").format(action=action) if action in LOCOMOTION_ACTIONS else "",
+        no_crossing_line=_template("action_no_crossing.txt") if action in LOCOMOTION_ACTIONS and direction in ("down", "up") else "",
     )
 
 
@@ -315,7 +320,7 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
     ]
     if len(refs) > 1:
         blocks.append(_template("direction_reference.txt"))
-    blocks.append(_still_block(title) if breathe else _action_block(plan, profile, action, multi))
+    blocks.append(_still_block(title) if breathe else _action_block(plan, profile, action, multi, direction))
     if extra:
         blocks.append(_fill("additional_direction.txt", extra=extra))
     if codes:

@@ -5,7 +5,7 @@ with the doctor result in ``detail.doctor``), queues the Job and answers ``202 {
 Notes on ambiguous spots
 ------------------------
 * Request-time preconditions mirror Core (412 ``precondition_failed``): reference (and for generation the identity
-  profile and, for non-representative directions, the representative unit's raw.png) must exist; ``direction`` rules and 409 ``mirrored_direction`` are those of the sync action endpoints; the
+  profile and, for non-representative directions, the representative unit's adopted frame) must exist; ``direction`` rules and 409 ``mirrored_direction`` are those of the sync action endpoints; the
   recovery codes / extra are validated by building the prompt once.
 * ``attempt`` in the 202 body is always null: Core allocates the attempt inside the Codex lock (see jobs.py); the
   Job's ``attempt`` is filled once the job runs.
@@ -122,7 +122,7 @@ async def generate_action(request: Request, cid: str, action: str, body: PromptR
     profile = require_profile(cd)
     pr = build_prompt(plan, profile, action, d, body.extra, body.recovery)  # validates recovery codes
     for role in pr.references_needed:
-        if role != "character" and not (cd / role.split(":", 1)[1] / "raw.png").exists():
+        if role != "character" and not (cd / role.split(":", 1)[1] / "frames" / "000.png").exists():
             raise ForgeError("no_direction_reference", f"accept {role.split(':', 1)[1]} first (it is the direction reference)",
                              EXIT_PRECONDITION)
     await require_codex(request)

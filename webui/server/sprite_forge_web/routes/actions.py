@@ -84,6 +84,7 @@ class AttemptSummary(BaseModel):
     score: int | float | None = None
     recovery: list[str] = []
     extra: str | None = None
+    prompt_version: str | None = None  # generation.json prompt_template_version (e.g. action_prompt@3)
     accepted: bool
     sheet: str | None
 
@@ -163,7 +164,8 @@ def _attempt_dir(cd: Path, unit: str, aid: str) -> Path:
 
 def _summary(cd: Path, cid: str, unit: str, aid: str, ent: dict) -> AttemptSummary:
     row = ent.get("attempts", {}).get(aid, {})
-    return AttemptSummary(attempt=aid, accepted=ent.get("accepted_attempt") == aid,
+    version = (read_json(cd / unit / "attempts" / aid / "generation.json") or {}).get("prompt_template_version")
+    return AttemptSummary(attempt=aid, accepted=ent.get("accepted_attempt") == aid, prompt_version=version,
                           sheet=file_url(cd, cid, f"{unit}/attempts/{aid}/sheet.png"), **row)
 
 

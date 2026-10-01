@@ -87,6 +87,7 @@ OVERRIDE_KEYS = {
 # deterministic breathing; video = generated clip converted to sprites (needs a connected video provider)
 METHODS = ("grid", "breathe", "video")
 BREATHE_FRAMES = 6
+MANY_FRAMES = 8  # grid actions with this many frames or more get a `frames_many` warning in plan.assumptions
 
 
 def video_method_available() -> bool:
@@ -304,6 +305,9 @@ def build_plan(
         "order": list(actions),
         "assumptions": notes,
     }
+    for name, act in built.items():
+        if act.get("method", "grid") != "breathe" and act["frames"] >= MANY_FRAMES:
+            notes.append(f"frames_many: {name}: {act['frames']}프레임 - {MANY_FRAMES}프레임 이상은 칸 붕괴·중복 몸·빈 칸이 늘어납니다 (4~6프레임 권장)")
     try:
         schemas.validate("animation-plan", plan)
     except jsonschema.ValidationError as exc:

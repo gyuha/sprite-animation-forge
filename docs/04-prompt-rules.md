@@ -79,11 +79,11 @@ Do not redesign, add, or remove any part of the character.
 | `right` | `character facing right, profile. Only the right side of the body is visible.` |
 | `left` (`mirror={}`일 때만) | `character facing left, profile. Only the left side of the body is visible.` |
 
-대표 방향이 아닌 unit에는 CAMERA 바로 뒤에 `DIRECTION REFERENCE` 블록을 넣고, 대표 방향 sheet를 추가 reference로 첨부한다.
+대표 방향이 아닌 unit에는 CAMERA 바로 뒤에 `DIRECTION REFERENCE` 블록을 넣고, 대표 방향의 **채택 결과 프레임 1장**(`frames/000.png`을 키 색 배경에 얹어 ~512px로 키운 것)을 추가 reference로 첨부한다. 포즈가 여러 개 담긴 sheet를 참조로 주면 방향 고정이 흐려진다는 sprite-gen의 실측을 따랐다.
 
 ```text
 DIRECTION REFERENCE
-- The second attached image shows the same character from another direction.
+- The second attached image shows one single pose of the same character from another direction.
 - Keep the identical proportions, clothing, colors, equipment, and art style.
 - Redraw only what the new facing direction reveals (for example the back of the cloak or the side profile). Do not redesign the character.
 ```
@@ -104,6 +104,8 @@ Frame sequence:
 {loop_line}
 Animate in place: the character does not travel across the cell.
 ```
+
+`walk`·`run`에는 `Animate in place` 뒤에 한 줄을 더 붙인다: `Show the {action} as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.` 방향이 `down`·`up`(정면·후면)이면 `Seen from this angle, the steps pass beside each other under the body; the feet never cross.`도 붙인다. (sprite-gen의 동영상 프롬프트 실측 요령을 이미지 프롬프트에 의역해 옮긴 것이며, 이미지 생성에서 실제로 효과가 있는지는 실제 Codex로 비교해 확인해야 한다.)
 
 `loop_line`은 loop 액션이면 `The last frame must flow seamlessly back into frame 1.`, 아니면 `This is a one-shot animation; frame {n} is the final pose.`이다.
 
@@ -342,6 +344,7 @@ Frame sequence:
 6. passing (opposite leg)
 The last frame must flow seamlessly back into frame 1.
 Animate in place: the character does not travel across the cell.
+Show the walk as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.
 
 CONSISTENCY RULES
 - Identical character scale and camera distance in every cell.

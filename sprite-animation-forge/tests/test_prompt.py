@@ -216,7 +216,7 @@ def test_prompt_templates_load_from_package_resources():
 
 
 def test_prompt_template_version_format():
-    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@2"
+    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@3"
     assert pr.build_prompt(side_plan(), PROFILE, "walk").template_version == pr.PROMPT_TEMPLATE_VERSION
 
 
@@ -406,7 +406,7 @@ def test_prompt_direction_reference_block_only_for_non_representative_directions
     assert "DIRECTION REFERENCE" not in down.text and down.references_needed == ["character"]
     for d in ("up", "right"):
         res = pr.build_prompt(plan, PROFILE, "walk", d)
-        assert res.text.count("DIRECTION REFERENCE\n- The second attached image shows the same character") == 1
+        assert res.text.count("DIRECTION REFERENCE\n- The second attached image shows one single pose of the same character") == 1
         assert res.references_needed == ["character", "direction:idle/down"]
         assert res.text.index("Top-down RPG view") < res.text.index("DIRECTION REFERENCE") < res.text.index("\nACTION\n")
     side = pr.build_prompt(side_plan(), PROFILE, "walk")
@@ -470,8 +470,8 @@ def test_prompt_shared_baseline_rule_is_dropped_for_airborne_actions(action, exp
     assert pr.validate_prompt(text) == []
 
 
-def test_prompt_template_version_was_bumped_for_the_airborne_change():
-    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@2"
+def test_prompt_template_version_is_action_prompt_3():
+    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@3"
 
 
 def test_plan_process_params_marks_airborne_actions_to_keep_vertical_travel():
