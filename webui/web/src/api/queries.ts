@@ -33,6 +33,18 @@ export interface CharacterDetail {
   status: { has_reference: boolean; has_plan: boolean; units: Record<string, unknown>[] }
 }
 
+// GET /api/presets (routes/presets.py), also an untyped dict.
+export interface ActionPreset { frames: number; grid: string; loop: boolean; fps: number; anchor: string; scale_strategy: string; x_anchor: string; components: string }
+export interface Presets {
+  frame_presets: Record<string, ActionPreset>
+  bundles: Record<string, { actions: string[]; view: string | null }>
+  grids: Record<string, string>
+  views: string[]
+  asset_types: string[]
+  art_styles: string[]
+  directions: string[]
+}
+
 /** Query keys. Everything of a character lives under ['characters', cid, ...] (see sse.ts for invalidation). */
 export const qk = {
   health: ['health'] as const,
@@ -55,6 +67,8 @@ export const healthQueryOptions = {
 }
 
 export const useHealth = () => useQuery(healthQueryOptions)
+
+export const usePresets = () => useQuery({ queryKey: ['presets'], queryFn: () => api<Presets>('/api/presets'), staleTime: Infinity })
 
 export const useCharacters = () =>
   useQuery({ queryKey: qk.characters, queryFn: () => api<{ characters: CharacterCard[] }>('/api/characters').then((r) => r.characters) })

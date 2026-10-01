@@ -22,6 +22,7 @@ export function upsertJob(qc: QueryClient, snap: JobSnapshot) {
   if (snap.state === 'succeeded') {
     qc.invalidateQueries({ queryKey: qk.attemptsOf(snap.character) })
     qc.invalidateQueries({ queryKey: qk.character(snap.character), exact: true }) // manifest
+    if (snap.type === 'identity_analyze') qc.invalidateQueries({ queryKey: qk.identity(snap.character) })
   }
 }
 
