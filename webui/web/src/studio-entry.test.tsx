@@ -2,6 +2,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AppLayout from '@/components/AppLayout'
+import CharacterLayout from '@/components/CharacterLayout'
 import Dashboard from '@/pages/Dashboard'
 import Export from '@/pages/Export'
 import { mockApi, renderWithClient } from '@/test-utils'
@@ -61,14 +62,21 @@ describe('studio entry for completed characters', () => {
     expect(screen.queryByTestId('nav-view')).toBeNull()
   })
 
-  it('Export: the studio link is shown even when no unit is missing', async () => {
+  it('Export: the tab bar leads back to the studio even when no unit is missing', async () => {
     mockApi({ 'GET /api/characters/hero': detail })
     renderWithClient(
       <MemoryRouter initialEntries={['/c/hero/export']}>
-        <Routes><Route path="/c/:cid/export" element={<Export />} /></Routes>
+        <Routes>
+          <Route element={<CharacterLayout />}>
+            <Route path="/c/:cid/export" element={<Export />} />
+          </Route>
+        </Routes>
       </MemoryRouter>,
     )
-    expect(await screen.findByTestId('export-studio-link')).toHaveAttribute('href', '/c/hero/studio')
+    expect(await screen.findByTestId('tab-studio')).toHaveAttribute('href', '/c/hero/studio')
+    expect(await screen.findByTestId('export-run')).toBeInTheDocument()
     expect(screen.queryByTestId('export-missing-alert')).toBeNull()
+    expect(screen.queryByTestId('export-studio-link')).toBeNull()
+    expect(screen.queryByTestId('export-view-link')).toBeNull()
   })
 })

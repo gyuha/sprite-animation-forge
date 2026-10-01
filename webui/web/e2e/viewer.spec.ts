@@ -71,7 +71,7 @@ test('viewer lays out a topdown character with the mirrored left tile playable',
   await expect(page.locator('[data-testid^="viewer-tile-missing-"]')).toHaveCount(0)
 })
 
-test('the viewer is reachable from the dashboard, the export page and the studio', async ({ page, server }) => {
+test('the viewer is reachable from the dashboard and, through the tab bar, from the export page and the studio', async ({ page, server }) => {
   await server.start()
   await generated(server, 'hero', 'npc')
 
@@ -81,11 +81,11 @@ test('the viewer is reachable from the dashboard, the export page and the studio
   await expect(page.getByTestId('viewer-page')).toBeVisible()
 
   await page.goto('/c/hero/export')
-  await page.getByTestId('export-view-link').click()
+  await page.getByTestId('tab-view').click()
   await expect(page).toHaveURL(/\/c\/hero\/view$/)
 
   await page.goto('/c/hero/studio/idle')
-  await page.getByTestId('studio-view-link').click()
+  await page.getByTestId('tab-view').click()
   await expect(page).toHaveURL(/\/c\/hero\/view$/)
   await expect(tiles(page).first()).toBeVisible()
 })

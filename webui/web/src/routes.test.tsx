@@ -1,5 +1,7 @@
-import { matchRoutes } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { RouterProvider, createMemoryRouter, matchRoutes } from 'react-router-dom'
+import { screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mockApi, renderWithClient } from '@/test-utils'
 import Dashboard from '@/pages/Dashboard'
 import Export from '@/pages/Export'
 import Identity from '@/pages/Identity'
@@ -17,6 +19,12 @@ function pageAt(url: string) {
 }
 
 describe('routes', () => {
+  // AppLayout mounts the SSE hook and the toaster; jsdom has neither EventSource nor matchMedia
+  beforeEach(() => {
+    vi.stubGlobal('EventSource', class { close() {} addEventListener() {} onopen = null; onerror = null })
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} }))
+  })
+
   it.each([
     ['/', Dashboard],
     ['/new', NewCharacter],
@@ -38,5 +46,20 @@ describe('routes', () => {
 
   it('has no route for unknown paths', () => {
     expect(pageAt('/nope').type).toBeUndefined()
+  })
+
+  it.each([
+    ['/c/hero/studio/idle', true],
+    ['/c/hero/view', true],
+    ['/c/hero/export', true],
+    ['/c/hero/identity', false],
+    ['/c/hero/plan', false],
+    ['/', false],
+  ])('%s shows the character tab bar: %s', async (url, shown) => {
+    mockApi({ 'GET /api/health': { ready: true, warnings: [], codex: {}, python: {} }, 'GET /api/jobs': { jobs: [] } })
+    renderWithClient(<RouterProvider router={createMemoryRouter(routes, { initialEntries: [url] })} />)
+    await screen.findByText('Sprite Animation Forge')
+    if (shown) expect(await screen.findByTestId('character-tabs')).toBeInTheDocument()
+    else expect(screen.queryByTestId('character-tabs')).toBeNull()
   })
 })

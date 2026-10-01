@@ -119,11 +119,11 @@ describe('Export', () => {
     expect(fetchMock.mock.calls.filter(([, i]) => i?.method === 'POST')).toHaveLength(1)
   })
 
-  it('links to the animation viewer', async () => {
+  it('has no in-page navigation links (the tab bar provides them)', async () => {
     mockApi(routes(bothAccepted))
     renderPage()
-    const link = await screen.findByTestId('export-view-link')
-    expect(link).toHaveAttribute('href', '/c/hero/view')
-    expect(link).toHaveTextContent('애니메이션 보기')
+    await screen.findByTestId('export-run')
+    expect(screen.queryByTestId('export-view-link')).toBeNull()
+    expect(screen.queryByTestId('export-studio-link')).toBeNull()
   })
 })

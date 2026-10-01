@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom'
 import AppLayout from '@/components/AppLayout'
+import CharacterLayout from '@/components/CharacterLayout'
 import Dashboard from '@/pages/Dashboard'
 import Export from '@/pages/Export'
 import Identity from '@/pages/Identity'
@@ -17,9 +18,14 @@ export const routes = [
       { path: '/new', element: <NewCharacter /> },
       { path: '/c/:cid/identity', element: <Identity /> },
       { path: '/c/:cid/plan', element: <Plan /> },
-      { path: '/c/:cid/studio/:action?/:direction?', element: <Studio /> },
-      { path: '/c/:cid/view', element: <Viewer /> },
-      { path: '/c/:cid/export', element: <Export /> },
+      {
+        element: <CharacterLayout />,
+        children: [
+          { path: '/c/:cid/studio/:action?/:direction?', element: <Studio /> },
+          { path: '/c/:cid/view', element: <Viewer /> },
+          { path: '/c/:cid/export', element: <Export /> },
+        ],
+      },
       { path: '/status', element: <Status /> },
     ],
   },

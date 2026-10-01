@@ -117,18 +117,19 @@ describe('Studio shortcuts', () => {
     const player = await canvas()
     expect(player).toHaveAttribute('data-playing', 'true')
     await userEvent.keyboard(' ')
-    expect(player).toHaveAttribute('data-playing', 'false')
+    await waitFor(() => expect(player).toHaveAttribute('data-playing', 'false'))
     await userEvent.keyboard('{ArrowRight}')
-    expect(player).toHaveAttribute('data-frame', '1')
+    await waitFor(() => expect(player).toHaveAttribute('data-frame', '1'))
 
     await userEvent.click(screen.getByTestId('extra-input'))
     await userEvent.keyboard(' g a o{ArrowLeft}')
-    expect(screen.getByTestId('extra-input')).toHaveValue(' g a o')
+    await waitFor(() => expect(screen.getByTestId('extra-input')).toHaveValue(' g a o'))
+    await waitFor(() => expect(screen.getByTestId('extra-count')).toHaveTextContent('6 / 500'))
+    await new Promise((r) => setTimeout(r, 50)) // let the rAF player settle before asserting that nothing happened
     expect(player).toHaveAttribute('data-playing', 'false') // space typed in the textarea did not toggle
     expect(player).toHaveAttribute('data-frame', '1') // nor did the arrow key
     expect(player).toHaveAttribute('data-overlays', '') // 'o' did not toggle onion
     expect(calls(fetchMock, 'POST')).toEqual([]) // 'g' did not start a generation, 'a' did not accept
-    expect(screen.getByTestId('extra-count')).toHaveTextContent('6 / 500')
   })
 
   it('G starts a generation and A accepts (through the confirmation) when focus is on the page', async () => {

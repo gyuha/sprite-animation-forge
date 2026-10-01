@@ -171,7 +171,7 @@ describe('entry links', () => {
     expect(screen.getByTestId('character-card-hero')).toHaveAttribute('href', '/c/hero/studio')
   })
 
-  it('Studio links to the viewer', async () => {
+  it('Studio has no in-page link to the viewer (the tab bar provides it)', async () => {
     mockApi({
       ...routes(sideUnits),
       'GET /api/health': { ready: true, warnings: [], codex: {}, python: {} },
@@ -179,6 +179,7 @@ describe('entry links', () => {
       'GET /api/characters/hero/actions/idle/attempts': { action: 'idle', direction: null, unit: 'idle', mirror_of: null, accepted_attempt: null, attempts: [] },
     })
     renderRoute(<Studio />, '/c/hero/studio/idle', '/c/:cid/studio/:action?/:direction?')
-    expect(await screen.findByTestId('studio-view-link')).toHaveAttribute('href', '/c/hero/view')
+    await screen.findByTestId('studio-page')
+    expect(screen.queryByTestId('studio-view-link')).toBeNull()
   })
 })

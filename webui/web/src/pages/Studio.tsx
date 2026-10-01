@@ -2,7 +2,6 @@
  * S5 액션 스튜디오. 경로 /c/:cid/studio/:action/:direction? (방향은 plan에 방향이 2개 이상일 때만; 모든 API 호출에 ?direction= 포함).
  * data-testid (Playwright 등이 의존한다):
  *   studio-page                     화면 루트
- *   studio-view-link                "애니메이션 보기" → /c/:id/view
  *   action-tab-<action>             상단 액션 탭 (data-icon = ✓ ● ⚠ ○)
  *   direction-tabs                  방향 탭 영역 — plan 방향이 2개 이상일 때만 렌더링
  *   direction-tab-<down|up|right|left>   방향 탭 (mirror 파생 left 는 data-icon="↔")
@@ -125,7 +124,6 @@ export default function Studio() {
             })}
           </TabsList>
         </Tabs>
-        <Button asChild variant="outline" size="sm" className="ml-auto"><Link to={`/c/${cid}/view`} data-testid="studio-view-link">애니메이션 보기</Link></Button>
       </div>
       {multi && (
         <Tabs value={dir} onValueChange={(d) => navigate(studioPath(cid, action, d as Direction))} data-testid="direction-tabs">
