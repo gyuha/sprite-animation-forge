@@ -33,6 +33,14 @@ class Forge:
         return self.run(*args, expect=0)[1]
 
 
+@pytest.fixture(autouse=True)
+def no_video_credentials(monkeypatch, tmp_path):
+    """Never pick up the developer's real xAI credentials (docs/13)."""
+    monkeypatch.setenv("SPRITE_FORGE_GROK_AUTH", str(tmp_path / "no-grok-auth.json"))
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    monkeypatch.delenv("SPRITE_FORGE_VIDEO_PROVIDER", raising=False)
+
+
 @pytest.fixture
 def forge(tmp_path):
     return Forge(tmp_path / "sprites")

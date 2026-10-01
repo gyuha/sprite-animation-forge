@@ -91,8 +91,9 @@ MANY_FRAMES = 8  # grid actions with this many frames or more get a `frames_many
 
 
 def video_method_available() -> bool:
-    """True once a video provider is connected (docs/13-video-api-setup.md). Not wired yet."""
-    return False
+    """True once a video provider is connected (docs/13-video-api-setup.md)."""
+    from .providers.video_factory import make_video_provider
+    return bool(make_video_provider().check()["configured"])
 
 
 def grid_for(frames: int) -> str:

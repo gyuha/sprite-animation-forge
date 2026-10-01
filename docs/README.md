@@ -25,6 +25,7 @@ Codex CLI 연동 방식은 추측이 아니라 **2026-09-30에 로컬 `codex-cli
 | 10 | [backend-api.md](10-backend-api.md) | REST/SSE API, Job 큐, 상태 전이 | Backend / Frontend |
 | 11 | [testing.md](11-testing.md) | 테스트 전략, 픽스처, MVP 인수 테스트 | 전원 |
 | 12 | [roadmap.md](12-roadmap.md) | 마일스톤, 작업 분해, 검증 기준, 리스크, 미결 사항 | 전원 |
+| 13 | [video-api-setup.md](13-video-api-setup.md) | **동영상 방식(xAI Grok Imagine) API 연결 안내 (선택 기능)** | 사용자 / Backend |
 
 ## 읽는 순서
 

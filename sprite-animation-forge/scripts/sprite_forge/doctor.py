@@ -1,6 +1,7 @@
 """``doctor``: pre-flight report (docs/03 11). Never raises; a missing codex is a report, not an error.
 
-``run_doctor(provider=None) -> {codex, python, warnings, ready}``
+``run_doctor(provider=None) -> {codex, video, python, warnings, ready}``; ``video`` is the video provider's ``check()`` (informational:
+not connected never lowers ``ready`` or adds a warning, since video is an optional method)
 ``codex`` is ``CodexCliProvider.check()`` minus its ``ready`` key (that moves to the top level, which also
 requires the Python dependencies). ``python`` maps pillow / numpy / scipy to a version string or ``null``.
 
@@ -16,6 +17,7 @@ import importlib
 import os
 
 from .providers import CodexCliProvider
+from .providers.video_factory import make_video_provider
 from .providers.codex_cli import TESTED_VERSION
 
 DEPS = (("pillow", "PIL"), ("numpy", "numpy"), ("scipy", "scipy"))
@@ -53,5 +55,5 @@ def run_doctor(provider=None) -> dict:
         warnings.append(f"codex_home_not_writable: {home}")
     warnings += [f"python_dependency_missing: {name}" for name, v in python.items() if v is None]
 
-    return {"codex": codex, "python": python, "warnings": warnings,
+    return {"codex": codex, "video": make_video_provider().check(), "python": python, "warnings": warnings,
             "ready": bool(codex_ready and all(python.values()))}

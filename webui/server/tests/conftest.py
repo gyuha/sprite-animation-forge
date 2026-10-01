@@ -23,6 +23,13 @@ def fake_codex_env(monkeypatch, tmp_path):
     monkeypatch.setenv("FAKE_CODEX_DOCTOR", "ok")
 
 
+@pytest.fixture(autouse=True)
+def no_video_credentials(monkeypatch, tmp_path):
+    monkeypatch.setenv("SPRITE_FORGE_GROK_AUTH", str(tmp_path / "no-grok-auth.json"))
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    monkeypatch.delenv("SPRITE_FORGE_VIDEO_PROVIDER", raising=False)
+
+
 @pytest.fixture
 def root(tmp_path):
     return tmp_path / "sprites"

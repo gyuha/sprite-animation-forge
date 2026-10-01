@@ -21,6 +21,8 @@ export interface Health {
   ready: boolean
   warnings: string[]
   codex: { installed: boolean; version: string | null; tested_version?: string; codex_home?: string; version_ok: boolean; logged_in: boolean; auth: string | null; image_generation: boolean }
+  /** optional video provider (docs/13); not connected never makes `ready` false */
+  video?: { provider: string; configured: boolean; auth: string | null; model?: string }
   python: Record<string, string | null>
 }
 export interface CharacterCard {
