@@ -33,6 +33,11 @@ export default function AppLayout() {
             </NavLink>
           ))}
           {cid && (
+            <NavLink to={`/c/${cid}/studio`} className={({ isActive }) => cn('text-muted-foreground hover:text-foreground', isActive && 'font-medium text-foreground')} data-testid="nav-studio">
+              스튜디오
+            </NavLink>
+          )}
+          {cid && (
             <NavLink to={`/c/${cid}/view`} className={({ isActive }) => cn('text-muted-foreground hover:text-foreground', isActive && 'font-medium text-foreground')} data-testid="nav-view">
               애니메이션
             </NavLink>

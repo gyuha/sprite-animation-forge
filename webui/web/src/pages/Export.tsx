@@ -2,6 +2,7 @@
  * S6 내보내기. data-testid:
  *   export-engine                   엔진 select 트리거 (Phaser 기본 / Generic). 서버 export 는 항상 두 형식을 모두 쓰므로 안내·스니펫만 바뀐다
  *   export-view-link                "애니메이션 보기" → /c/:id/view
+ *   export-studio-link              "스튜디오" → /c/:id/studio (누락 유닛이 없어도 항상 표시)
  *   export-run                      "내보내기 실행" → POST /api/characters/:id/export
  *   export-warnings                 export 응답의 warnings (missing_actions 제외)
  *   export-missing-alert            누락 unit 경고. export-missing-link-<unit> = 해당 Studio 링크
@@ -82,6 +83,7 @@ export default function Export() {
         <h1 className="text-2xl font-semibold">내보내기 · {cid}</h1>
         <div className="flex items-center gap-3">
           <Button asChild variant="outline"><Link to={`/c/${cid}/view`} data-testid="export-view-link">애니메이션 보기</Link></Button>
+          <Button asChild variant="outline"><Link to={`/c/${cid}/studio`} data-testid="export-studio-link">스튜디오</Link></Button>
           <Label>엔진</Label>
           <Select value={engine} onValueChange={setEngine}>
             <SelectTrigger className="w-32" data-testid="export-engine"><SelectValue /></SelectTrigger>
