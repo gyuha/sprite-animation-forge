@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "animation-plan.json (docs/08 5.1, docs/02 8)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "character", "asset_type", "view", "facing", "directions", "art_style", "cell", "margin", "key_color", "engine", "actions", "order"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "character": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,39}$" },
+    "asset_type": { "enum": ["player", "npc", "character", "creature", "enemy"] },
+    "view": { "enum": ["side", "topdown", "3/4", "front", "rear"] },
+    "facing": { "enum": ["right", "left", "up", "down", "down-right", "camera", "away"] },
+    "directions": { "$ref": "#/$defs/directions" },
+    "mirror": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "left": { "const": "right" } }
+    },
+    "art_style": { "enum": ["auto", "pixel_art", "retro_pixel", "pixel_inspired", "clean_hd", "project_native"] },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["w", "h"],
+      "properties": { "w": { "type": "integer", "minimum": 16 }, "h": { "type": "integer", "minimum": 16 } }
+    },
+    "margin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["top", "side", "bottom"],
+      "properties": {
+        "top": { "type": "integer", "minimum": 0 },
+        "side": { "type": "integer", "minimum": 0 },
+        "bottom": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "key_color": { "enum": ["#FF00FF", "#00FF00"] },
+    "engine": { "enum": ["generic", "phaser"] },
+    "actions": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+      "additionalProperties": { "$ref": "#/$defs/action" }
+    },
+    "order": { "type": "array", "items": { "type": "string" } },
+    "assumptions": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "directions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["right", "left", "up", "down"] }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frames", "grid", "loop", "fps", "anchor", "x_anchor", "scale_strategy", "components"],
+      "properties": {
+        "kind": { "enum": ["body", "fx"] },
+        "frames": { "type": "integer", "minimum": 2, "maximum": 16 },
+        "grid": { "type": "string", "pattern": "^\\d+x\\d+$" },
+        "loop": { "type": "boolean" },
+        "fps": { "type": "integer", "minimum": 1, "maximum": 60 },
+        "anchor": { "enum": ["center", "bottom", "feet"] },
+        "x_anchor": { "enum": ["mass", "feet", "bbox"] },
+        "scale_strategy": { "enum": ["fit", "preserve"] },
+        "components": { "enum": ["largest", "all"] },
+        "qc_profile": { "enum": ["locomotion", "action", "airborne", "terminal", "fx"] },
+        "motion": { "type": "string", "minLength": 1 },
+        "poses": { "type": "array", "items": { "type": "string" } },
+        "directions": { "$ref": "#/$defs/directions" }
+      }
+    }
+  }
+}

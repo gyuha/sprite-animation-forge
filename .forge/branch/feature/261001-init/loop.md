@@ -16,12 +16,12 @@ wall: none
 - [ ] C6. 가짜 codex provider 계약: `uv run pytest -q -k "codex_cli"` → 종료 코드 0, docs/11 §3.3의 9개 모드(success·no_rollout·no_image·multiple_images·image_gen_failed·exit_1·hang·invalid_png·config_warnings) 각각에 대응하는 테스트가 `PASSED` (`-v` 출력에서 모드 이름 9개 모두 확인)
 
 ## Check progress (모든 stop-condition 실행 뒤 갱신)
-- C1: pass ×0 · regressed: ×0 · last-evidence: "pytest not-live rc=0 passed=184" · tried:
-- C2: fail ×3 · regressed: ×0 · last-evidence: "scenario rc=5 passed=0 missing=[1, 2, 3, 4, 5, 6]" · tried:
-- C3: fail ×3 · regressed: ×0 · last-evidence: "determinism rc=5 passed=0" · tried:
-- C4: fail ×3 · regressed: ×0 · last-evidence: "schema rc=5 passed=0" · tried:
-- C5: fail ×3 · regressed: ×0 · last-evidence: "help rc=2 missing=['doctor', 'init', 'reference', 'identity', 'plan', 'prompt', 'generate', 'import-raw', 'process', 'accept', 'export', 'status']; skill_frontmatter=False missing_refs=['animation-rules', 'prompt-rules', 'character-consistency', 'qc-rules', 'codex-image', 'phaser-export', 'examples']" · tried:
-- C6: fail ×3 · regressed: ×0 · last-evidence: "codex_cli rc=5 passed=0 missing_modes=['success', 'no_rollout', 'no_image', 'multiple_images', 'image_gen_failed', 'exit_1', 'hang', 'invalid_png', 'config_warnings']" · tried:
+- C1: pass ×0 · regressed: ×0 · last-evidence: "pytest not-live rc=0 passed=237" · tried:
+- C2: fail ×4 · regressed: ×0 · last-evidence: "scenario rc=5 passed=0 missing=[1, 2, 3, 4, 5, 6]" · tried:
+- C3: fail ×4 · regressed: ×0 · last-evidence: "determinism rc=5 passed=0" · tried:
+- C4: fail ×4 · regressed: ×0 · last-evidence: "schema rc=5 passed=0" · tried:
+- C5: fail ×4 · regressed: ×0 · last-evidence: "help rc=2 missing=['doctor', 'init', 'reference', 'identity', 'plan', 'prompt', 'generate', 'import-raw', 'process', 'accept', 'export', 'status']; skill_frontmatter=False missing_refs=['animation-rules', 'prompt-rules', 'character-consistency', 'qc-rules', 'codex-image', 'phaser-export', 'examples']" · tried:
+- C6: fail ×4 · regressed: ×0 · last-evidence: "codex_cli rc=5 passed=0 missing_modes=['success', 'no_rollout', 'no_image', 'multiple_images', 'image_gen_failed', 'exit_1', 'hang', 'invalid_png', 'config_warnings']" · tried:
 
 ## Authorized replan scope
 - 실패한 stop-condition 검사에 직접 대응하는 fix-forward 작업만 자동 생성한다. 구현 대상은 `pyproject.toml`, `sprite-animation-forge/`(Core 패키지·스키마·테스트·SKILL.md·references), `uv.lock`, 테스트 픽스처 생성 코드로 한정한다.

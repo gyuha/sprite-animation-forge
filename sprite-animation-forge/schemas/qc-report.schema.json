@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "qc-report.json: per action (docs/06 4.1) or per character (docs/06 4.3)",
+  "oneOf": [{ "$ref": "#/$defs/action_report" }, { "$ref": "#/$defs/character_report" }],
+  "$defs": {
+    "status": { "enum": ["pass", "warn", "fail"] },
+    "action_report": {
+      "type": "object",
+      "required": ["schema_version", "action", "attempt", "status", "score", "frames", "checks", "results", "per_frame", "recommendations"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "action": { "type": "string" },
+        "attempt": { "type": ["string", "null"] },
+        "status": { "$ref": "#/$defs/status" },
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "frames": { "type": "integer", "minimum": 0 },
+        "checks": {
+          "type": "object",
+          "required": ["edge_touch", "scale_variance", "anchor_variance", "duplicate_frames", "empty_frames"],
+          "properties": {
+            "edge_touch": { "type": ["boolean", "null"] },
+            "scale_variance": { "type": ["number", "null"] },
+            "anchor_variance": { "type": ["number", "null"] },
+            "duplicate_frames": { "type": "array" },
+            "empty_frames": { "type": "array" }
+          }
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "grade"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^QC-\\d{2}$" },
+              "grade": { "enum": ["pass", "warn", "fail", "info", "skipped", "not_run"] }
+            }
+          }
+        },
+        "per_frame": {
+          "type": "array",
+          "items": { "type": "object", "required": ["index", "dhash"], "properties": { "index": { "type": "integer" } } }
+        },
+        "recommendations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "code"],
+            "properties": { "type": { "enum": ["reprocess", "regenerate"] }, "code": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "character_report": {
+      "type": "object",
+      "required": ["schema_version", "character", "status", "actions", "forced_accepts"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "character": { "type": "string" },
+        "status": { "$ref": "#/$defs/status" },
+        "actions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["attempt", "status", "score"],
+            "properties": {
+              "attempt": { "type": "string" },
+              "status": { "$ref": "#/$defs/status" },
+              "score": { "type": "integer" },
+              "warnings": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "forced_accepts": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
