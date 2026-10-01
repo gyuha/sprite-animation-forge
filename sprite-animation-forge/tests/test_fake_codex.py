@@ -186,3 +186,16 @@ def test_fake_codex_config_warnings(env, tmp_path):
     errs = [e for e in events(p) if e["type"] == "item.completed" and e["item"]["type"] == "error"]
     assert len(errs) == 2
     assert len(images(env, thread_id(p))) == 1
+
+
+def test_fake_codex_call_log_counts_image_generations_only(env, tmp_path):
+    log = tmp_path / "calls.log"
+    schema = tmp_path / "schema.json"
+    schema.write_text("{}")
+    assert run(env, ["--version"], FAKE_CODEX_CALL_LOG=str(log)).returncode == 0
+    identity = argv_for(tmp_path)[:-3] + ["--output-schema", str(schema), *argv_for(tmp_path)[-3:]]
+    assert run(env, identity, FAKE_CODEX_CALL_LOG=str(log)).returncode == 0
+    assert not log.exists()
+    first = run(env, argv_for(tmp_path), FAKE_CODEX_CALL_LOG=str(log))
+    second = run(env, argv_for(tmp_path), FAKE_CODEX_CALL_LOG=str(log))
+    assert log.read_text().splitlines() == [f"image_gen {thread_id(first)}", f"image_gen {thread_id(second)}"]

@@ -8,6 +8,8 @@ Environment:
                     invalid_json | bad_schema   (the last two only matter with --output-schema)
   FAKE_CODEX_IMAGE  synthetic variant from tests/fixtures/synthetic/make.py (default: clean)
   FAKE_CODEX_GRID   optional "ROWSxCOLS" of the synthetic sheet (default: 2x2)
+  FAKE_CODEX_CALL_LOG optional file; one line `image_gen <thread_id>` is appended per image-generation
+                    invocation (not for doctor probes or --output-schema identity calls)
   FAKE_CODEX_DOCTOR doctor probes (`--version`, `login status`, `features list`; no CODEX_HOME needed):
                     ok (default) | logged_out | image_disabled | old_version
 
@@ -179,6 +181,11 @@ def main():
         emit({"type": "item.completed", "item": {"id": "item_2", "type": "agent_message", "text": message}})
         emit({"type": "turn.completed", "usage": {"input_tokens": 1000, "cached_input_tokens": 500, "output_tokens": 100}})
         return
+
+    call_log = os.environ.get("FAKE_CODEX_CALL_LOG")
+    if call_log:
+        with open(call_log, "a") as f:
+            f.write(f"image_gen {thread_id}\n")
 
     from make import make_sheet  # synthetic generator (fixtures/synthetic/make.py)
 
