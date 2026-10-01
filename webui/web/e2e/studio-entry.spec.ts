@@ -2,7 +2,7 @@ import { expect, test } from './fixtures'
 
 // A character whose every unit is accepted used to have no way back into the studio: its dashboard card goes
 // straight to export. These three entry points must reach a working studio for such a character.
-test('a fully accepted character can be opened in the studio from the dashboard, the nav and the export page', async ({ page, server }) => {
+test('a fully accepted character can be opened in the studio from the dashboard and the export page', async ({ page, server }) => {
   await server.start()
   await server.seedCharacter('hero', 'npc')
   const { job } = await server.api('/api/characters/hero/generate-all', {
@@ -23,11 +23,6 @@ test('a fully accepted character can be opened in the studio from the dashboard,
   // the studio is really usable for an accepted unit: its accepted attempt is shown and regenerating is enabled
   await expect(page.locator('[data-testid^="accepted-badge-"]').first()).toBeVisible()
   await expect(page.getByTestId('generate-button')).toBeEnabled()
-
-  // nav link (inside a character route)
-  await page.goto('/c/hero/export')
-  await page.getByTestId('nav-studio').click()
-  await expect(page.getByTestId('studio-page')).toBeVisible()
 
   // export page link, shown although nothing is missing
   await page.goto('/c/hero/export')

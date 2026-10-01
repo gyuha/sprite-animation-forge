@@ -49,17 +49,16 @@ describe('studio entry for completed characters', () => {
       </MemoryRouter>,
     )
 
-  it('nav: the studio link appears only inside a character route', async () => {
+  it('nav: only the top-level pages are linked (no per-character or new-character links)', async () => {
     mockApi({ ...base, 'GET /api/characters': { characters: [] } })
     renderLayout('/c/hero/export')
-    expect(await screen.findByTestId('nav-studio')).toHaveAttribute('href', '/c/hero/studio')
-  })
-
-  it('nav: no studio link on the dashboard', async () => {
-    mockApi({ ...base, 'GET /api/characters': { characters: [] } })
-    renderLayout('/')
-    await screen.findByText('home')
+    await screen.findByText('export')
+    const nav = screen.getByRole('navigation')
+    expect(nav).toHaveTextContent('캐릭터')
+    expect(nav).toHaveTextContent('상태')
+    expect(nav).not.toHaveTextContent('새 캐릭터')
     expect(screen.queryByTestId('nav-studio')).toBeNull()
+    expect(screen.queryByTestId('nav-view')).toBeNull()
   })
 
   it('Export: the studio link is shown even when no unit is missing', async () => {

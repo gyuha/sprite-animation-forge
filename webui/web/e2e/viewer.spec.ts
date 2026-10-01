@@ -79,7 +79,6 @@ test('the viewer is reachable from the dashboard, the export page and the studio
   await page.getByTestId('character-view-hero').click()
   await expect(page).toHaveURL(/\/c\/hero\/view$/)
   await expect(page.getByTestId('viewer-page')).toBeVisible()
-  await expect(page.getByTestId('nav-view')).toBeVisible()
 
   await page.goto('/c/hero/export')
   await page.getByTestId('export-view-link').click()
