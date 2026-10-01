@@ -50,3 +50,42 @@ tasks:
     desc: "forge.py 직접 실행. 예: task forge -- status hero --root ./sprites"
     cmds:
       - uv run python {{.FORGE}} {{.CLI_ARGS}}
+
+  web:install:
+    desc: 프런트엔드 의존성 설치 (pnpm install)
+    cmds:
+      - pnpm --dir webui/web install
+
+  web:test:
+    desc: 프런트엔드 단위 테스트 (Vitest)
+    cmds:
+      - pnpm --dir webui/web test
+
+  web:typecheck:
+    desc: 프런트엔드 타입 검사
+    cmds:
+      - pnpm --dir webui/web typecheck
+
+  gen:types:
+    desc: 서버 OpenAPI에서 webui/web/src/api/types.ts 생성
+    cmds:
+      - pnpm --dir webui/web gen:types
+
+  build:
+    desc: 프런트엔드 빌드 (webui/web/dist, 서버가 정적 서빙)
+    cmds:
+      - pnpm --dir webui/web build
+
+  dev:server:
+    desc: FastAPI 서버만 실행 (127.0.0.1:8765)
+    cmds:
+      - uv run sprite-forge-web
+
+  dev:web:
+    desc: Vite 개발 서버만 실행 (5173, /api·/files는 8765로 프록시)
+    cmds:
+      - pnpm --dir webui/web dev
+
+  dev:
+    desc: 서버(8765) + Vite(5173) 동시 실행, Ctrl-C로 둘 다 종료
+    deps: [dev:server, dev:web]

@@ -4,3 +4,4 @@ __pycache__/
 sprites/
 sprite-animation-forge/tests/fixtures/codex-samples/
 node_modules/
+webui/web/dist/
