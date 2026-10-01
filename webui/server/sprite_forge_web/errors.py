@@ -28,6 +28,8 @@ _BY_CODE = {
     "busy": (409, "busy"),
     "mirrored_direction": (409, "mirrored_direction"),
     "invalid_params": (400, "invalid_param"),
+    "invalid_override": (400, "invalid_param"),
+    "reference_exists": (409, "already_exists"),
 }
 _HTTP_CODES = {400: "invalid_param", 403: "forbidden", 404: "not_found", 405: "method_not_allowed"}
 

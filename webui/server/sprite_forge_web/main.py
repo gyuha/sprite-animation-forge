@@ -13,12 +13,13 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from . import errors
-from .routes import characters, files, health, presets
+from .routes import actions, characters, export, files, health, identity, plan, presets, reference
 from .routes.static import static_router
 from .security import HostGuardMiddleware
 
 DEFAULT_STATIC_DIR = Path(__file__).resolve().parents[2] / "web" / "dist"
-ROUTERS = [health.router, presets.router, characters.router, files.router]
+ROUTERS = [health.router, presets.router, characters.router, reference.router, identity.router, plan.router,
+           actions.router, export.router, files.router]
 
 
 class HealthCache:

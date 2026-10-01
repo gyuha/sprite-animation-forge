@@ -25,7 +25,7 @@ sprite-forge-web = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["sprite-animation-forge/tests", "webui/server/tests"]
-pythonpath = ["sprite-animation-forge/scripts", "webui/server"]
+pythonpath = ["sprite-animation-forge/scripts", "sprite-animation-forge/tests", "webui/server"]
 addopts = "-m 'not live'"
 markers = [
     "live: calls the real Codex CLI (slow, consumes usage); run with -m live",
