@@ -25,10 +25,10 @@ export default function CharacterLayout() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-lg font-semibold">{cid}</h1>
+      <div className="flex flex-wrap items-end gap-4 border-b" data-testid="character-tabs-bar">
+        <h1 className="pb-1.5 text-lg font-semibold">{cid}</h1>
         <Tabs value={current} data-testid="character-tabs">
-          <TabsList>
+          <TabsList variant="line" className="h-9 gap-2 p-0">
             <TabsTrigger value="studio" asChild><Link to={`/c/${cid}/studio`} data-testid="tab-studio">스튜디오</Link></TabsTrigger>
             <TabsTrigger value="view" asChild><Link to={`/c/${cid}/view`} data-testid="tab-view">애니메이션 보기</Link></TabsTrigger>
             {exportEnabled ? (
