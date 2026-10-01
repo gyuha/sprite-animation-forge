@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+"""Fake `codex` for tests (docs/11 section 3.3, imitating docs/03 sections 2, 4.1, 6).
+
+Environment:
+  CODEX_HOME        required (the fake never falls back to ~/.codex); output root
+  FAKE_CODEX_MODE   success (default) | no_rollout | no_image | multiple_images |
+                    image_gen_failed | exit_1 | hang | invalid_png | config_warnings
+  FAKE_CODEX_IMAGE  synthetic variant from tests/fixtures/synthetic/make.py (default: clean)
+  FAKE_CODEX_GRID   optional "ROWSxCOLS" of the synthetic sheet (default: 2x2)
+
+Exit codes: 2 on any argv/stdin contract violation, 1 for exit_1 mode, else 0.
+"""
+import base64
+import json
+import os
+import sys
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / "synthetic"))
+
+MODES = {
+    "success", "no_rollout", "no_image", "multiple_images", "image_gen_failed",
+    "exit_1", "hang", "invalid_png", "config_warnings",
+}
+
+
+def die(msg: str, code: int = 2):
+    print(f"fake codex: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def emit(obj: dict):
+    print(json.dumps(obj), flush=True)
+
+
+def check_argv(argv: list[str]) -> dict:
+    """Enforce the docs/03 section 4.1 argv shape; returns {-C, -o, -i[]}."""
+    if not argv or argv[0] != "exec":
+        die("first argument must be 'exec'")
+    if "--json" not in argv:
+        die("--json is required")
+    if argv[-1] != "-":
+        die("last argument must be '-' (instruction on stdin)")
+    opts_with_value = {"-C", "-o", "-i", "-s", "-c"}
+    found: dict = {"-i": []}
+    i = 1
+    while i < len(argv) - 1:
+        a = argv[i]
+        if a in opts_with_value:
+            if i + 1 >= len(argv) - 1 or argv[i + 1].startswith("-"):
+                die(f"option {a} needs a value")
+            if a == "-i":
+                found["-i"].append(argv[i + 1])
+            else:
+                found[a] = argv[i + 1]
+            i += 2
+        elif a.startswith("-"):
+            i += 1  # flag without value (--json, --skip-git-repo-check)
+        else:
+            die(f"unexpected positional argument {a!r}")
+    if "-C" not in found or "-o" not in found:
+        die("-C and -o are required")
+    # -i takes multiple values, so '-' directly after -i would be swallowed by it.
+    if len(argv) < 3 or argv[-3] != "-o":
+        die("'-o <file>' must come immediately before the final '-'")
+    return found
+
+
+def rollout_item(status: str, revised: str | None, failure: str | None, saved: str | None, png: bytes | None):
+    return {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        "type": "event_msg",
+        "payload": {
+            "type": "item_completed",
+            "item": {
+                "type": "Extension",
+                "kind": "image_gen.generation",
+                "status": status,
+                "revisedPrompt": revised,
+                "transparentBackground": False,
+                "failure": failure,
+                "savedPath": saved,
+                "result": base64.b64encode(png).decode() if png else None,
+            },
+        },
+    }
+
+
+def main():
+    argv = sys.argv[1:]
+    mode = os.environ.get("FAKE_CODEX_MODE", "success")
+    if mode not in MODES:
+        die(f"unknown FAKE_CODEX_MODE {mode!r}")
+    opts = check_argv(argv)
+    if not Path(opts["-C"]).is_dir():
+        die(f"-C directory does not exist: {opts['-C']}")
+    prompt = sys.stdin.read()
+    if "<<<PROMPT" not in prompt or "PROMPT>>>" not in prompt:
+        die("instruction must contain <<<PROMPT and PROMPT>>> markers")
+    home_env = os.environ.get("CODEX_HOME")
+    if not home_env:
+        die("CODEX_HOME must be set")
+    home = Path(home_env)
+
+    thread_id = str(uuid.uuid4())
+    emit({"type": "thread.started", "thread_id": thread_id})
+    emit({"type": "turn.started"})
+
+    if mode == "exit_1":
+        print("Reading additional input from stdin...", file=sys.stderr)
+        for n in range(1, 26):
+            print(f"fake codex error line {n}", file=sys.stderr)
+        sys.exit(1)
+
+    if mode == "config_warnings":
+        for n in (1, 2):
+            emit({"type": "item.completed",
+                  "item": {"id": f"item_{n - 1}", "type": "error",
+                           "message": f"unknown config key `fake_setting_{n}` ignored"}})
+
+    emit({"type": "item.started",
+          "item": {"id": "item_2", "type": "agent_message", "text": ""}})
+
+    if mode == "hang":
+        while True:
+            time.sleep(1)
+
+    from make import make_sheet  # synthetic generator (fixtures/synthetic/make.py)
+
+    variant = os.environ.get("FAKE_CODEX_IMAGE", "clean")
+    rows, cols = (int(v) for v in os.environ.get("FAKE_CODEX_GRID", "2x2").lower().split("x"))
+    try:
+        sheet = make_sheet(variant, rows=rows, cols=cols)
+    except ValueError as e:
+        die(str(e))
+    png = sheet.png_bytes()
+
+    img_dir = home / "generated_images" / thread_id
+    saved: list[Path] = []
+    failure = None
+    if mode == "image_gen_failed":
+        failure = "fake: request refused by content policy"
+    elif mode != "no_image":
+        count = 2 if mode == "multiple_images" else 1
+        img_dir.mkdir(parents=True, exist_ok=True)
+        for n in range(count):
+            path = img_dir / f"exec-{uuid.uuid4()}.png"
+            path.write_bytes(b"this is not a png" if mode == "invalid_png" else png)
+            now = time.time() + n  # later files are strictly newer
+            os.utime(path, (now, now))
+            saved.append(path)
+
+    if mode not in ("no_rollout", "no_image"):
+        started = datetime.now()
+        sess = home / "sessions" / started.strftime("%Y/%m/%d")
+        sess.mkdir(parents=True, exist_ok=True)
+        rollout = sess / f"rollout-{started.strftime('%Y-%m-%dT%H-%M-%S')}-{thread_id}.jsonl"
+        lines = [{"timestamp": started.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                  "type": "session_meta", "payload": {"id": thread_id, "cwd": opts["-C"]}}]
+        if failure:
+            lines.append(rollout_item("failed", None, failure, None, None))
+        else:
+            for n, path in enumerate(saved):
+                lines.append(rollout_item("completed", f"Revised fake prompt #{n + 1}", None,
+                                          str(path), png if mode != "invalid_png" else None))
+        rollout.write_text("".join(json.dumps(x) + "\n" for x in lines))
+
+    message = f"FAILED: {failure}" if failure else "DONE"
+    Path(opts["-o"]).write_text(message)
+    emit({"type": "item.completed",
+          "item": {"id": "item_2", "type": "agent_message", "text": message}})
+    emit({"type": "turn.completed",
+          "usage": {"input_tokens": 144463, "cached_input_tokens": 124672, "output_tokens": 815}})
+
+
+if __name__ == "__main__":
+    main()
