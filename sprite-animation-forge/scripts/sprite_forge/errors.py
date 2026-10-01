@@ -8,8 +8,9 @@ EXIT_PRECONDITION = 3  # missing reference / plan / accepted attempt
 
 
 class ForgeError(Exception):
-    def __init__(self, code: str, message: str = "", exit_code: int = EXIT_INVALID):
+    def __init__(self, code: str, message: str = "", exit_code: int = EXIT_INVALID, extra: dict | None = None):
         super().__init__(f"{code}: {message}" if message else code)
         self.code = code
         self.message = message
         self.exit_code = exit_code
+        self.extra = extra or {}  # additional keys for the CLI's error JSON (e.g. the failed attempt)

@@ -3,6 +3,7 @@
 Public API (``cd`` = character directory ``<root>/<cid>``)
 ----------------------------------------------------------
 ``import_reference(cd, file) -> {reference, bg_removed}``  reference/source.*, character.png, character-keyed.png
+``write_character(ref_dir, image) -> chroma result``  character.png + character-keyed.png
 ``make_keyed(rgba_image, key_color=(255, 0, 255), max_side=1024) -> PIL.Image``
 ``import_raw(cd, plan, action, direction, file) -> {attempt, unit}``
 ``process_attempt(cd, plan, action, direction, attempt=None, sets=None) -> {attempt, unit, qc}``
@@ -84,6 +85,17 @@ def make_keyed(rgba: Image.Image, key_color=KEY_MAGENTA, max_side: int = 1024) -
     return out
 
 
+def write_character(ref_dir, img: Image.Image):
+    """Background-removed ``character.png`` + keyed ``character-keyed.png`` from ``img``; returns the chroma result."""
+    has_alpha = "A" in img.getbands() or "transparency" in img.info
+    arr = np.array(img.convert("RGBA" if has_alpha else "RGB"), dtype=np.uint8)
+    chroma = remove_background(arr)
+    character = Image.fromarray(chroma.rgba, "RGBA")
+    atomic_write_png(character, Path(ref_dir) / "character.png")
+    atomic_write_png(make_keyed(character), Path(ref_dir) / "character-keyed.png")
+    return chroma
+
+
 def import_reference(cd, file) -> dict:
     cd = Path(cd)
     mf.load(cd)
@@ -98,12 +110,7 @@ def import_reference(cd, file) -> dict:
     data = src.read_bytes()
     atomic_write_bytes(ref_dir / f"source{suffix}", data)
 
-    has_alpha = "A" in img.getbands() or "transparency" in img.info
-    arr = np.array(img.convert("RGBA" if has_alpha else "RGB"), dtype=np.uint8)
-    chroma = remove_background(arr)
-    character = Image.fromarray(chroma.rgba, "RGBA")
-    atomic_write_png(character, ref_dir / "character.png")
-    atomic_write_png(make_keyed(character), ref_dir / "character-keyed.png")
+    chroma = write_character(ref_dir, img)
 
     rel = f"reference/source{suffix}"
 

@@ -4,9 +4,17 @@
 Environment:
   CODEX_HOME        required (the fake never falls back to ~/.codex); output root
   FAKE_CODEX_MODE   success (default) | no_rollout | no_image | multiple_images |
-                    image_gen_failed | exit_1 | hang | invalid_png | config_warnings
+                    image_gen_failed | exit_1 | hang | invalid_png | config_warnings |
+                    invalid_json | bad_schema   (the last two only matter with --output-schema)
   FAKE_CODEX_IMAGE  synthetic variant from tests/fixtures/synthetic/make.py (default: clean)
   FAKE_CODEX_GRID   optional "ROWSxCOLS" of the synthetic sheet (default: 2x2)
+  FAKE_CODEX_DOCTOR doctor probes (`--version`, `login status`, `features list`; no CODEX_HOME needed):
+                    ok (default) | logged_out | image_disabled | old_version
+
+Identity analysis (docs/03 section 9): when `--output-schema <file>` is in argv (the file must exist and be
+JSON) no image is generated and the stdin PROMPT markers are not required; the fake writes an `identity`
+object (character-profile.llm schema) to the `-o` file. Modes: success (valid), invalid_json (not JSON),
+bad_schema (field `hair` missing); exit_1 and hang behave as for image generation.
 
 Exit codes: 2 on any argv/stdin contract violation, 1 for exit_1 mode, else 0.
 """
@@ -24,8 +32,34 @@ sys.path.insert(0, str(HERE.parent / "synthetic"))
 
 MODES = {
     "success", "no_rollout", "no_image", "multiple_images", "image_gen_failed",
-    "exit_1", "hang", "invalid_png", "config_warnings",
+    "exit_1", "hang", "invalid_png", "config_warnings", "invalid_json", "bad_schema",
 }
+
+IDENTITY = {
+    "silhouette": "small chibi knight with a tall pointed hood", "body_ratio": "short and stocky",
+    "head_ratio": "about 1:2.5", "hair": "", "face": "hidden by a steel visor", "eyes": "",
+    "clothing": "red hood, steel plate armor, beige tunic", "primary_colors": ["#C8281E", "#9A9CA0"],
+    "secondary_colors": ["#E8D2A8", "#6B3F1F"], "weapon": "sheathed sword on the back",
+    "accessories": ["leather pouch"], "outline_style": "dark brown outline",
+    "shading_style": "soft painted cel shading", "camera_angle": "side view", "orientation": "facing right",
+}
+
+
+def probe(argv: list[str]) -> bool:
+    """`--version`, `login status`, `features list` (docs/03 section 11). Returns False for anything else."""
+    state = os.environ.get("FAKE_CODEX_DOCTOR", "ok")
+    if argv == ["--version"]:
+        print("codex-cli 0.100.0" if state == "old_version" else "codex-cli 0.159.2")
+    elif argv == ["login", "status"]:
+        if state == "logged_out":
+            print("Not logged in", file=sys.stderr)
+            sys.exit(1)
+        print("Logged in using ChatGPT")
+    elif argv == ["features", "list"]:
+        print(f"image_generation                    stable             {'false' if state == 'image_disabled' else 'true'}")
+    else:
+        return False
+    return True
 
 
 def die(msg: str, code: int = 2):
@@ -45,7 +79,7 @@ def check_argv(argv: list[str]) -> dict:
         die("--json is required")
     if argv[-1] != "-":
         die("last argument must be '-' (instruction on stdin)")
-    opts_with_value = {"-C", "-o", "-i", "-s", "-c"}
+    opts_with_value = {"-C", "-o", "-i", "-s", "-c", "--output-schema"}
     found: dict = {"-i": []}
     i = 1
     while i < len(argv) - 1:
@@ -92,6 +126,8 @@ def rollout_item(status: str, revised: str | None, failure: str | None, saved: s
 
 def main():
     argv = sys.argv[1:]
+    if probe(argv):
+        return
     mode = os.environ.get("FAKE_CODEX_MODE", "success")
     if mode not in MODES:
         die(f"unknown FAKE_CODEX_MODE {mode!r}")
@@ -99,7 +135,8 @@ def main():
     if not Path(opts["-C"]).is_dir():
         die(f"-C directory does not exist: {opts['-C']}")
     prompt = sys.stdin.read()
-    if "<<<PROMPT" not in prompt or "PROMPT>>>" not in prompt:
+    identity_call = "--output-schema" in opts
+    if not identity_call and ("<<<PROMPT" not in prompt or "PROMPT>>>" not in prompt):
         die("instruction must contain <<<PROMPT and PROMPT>>> markers")
     home_env = os.environ.get("CODEX_HOME")
     if not home_env:
@@ -128,6 +165,20 @@ def main():
     if mode == "hang":
         while True:
             time.sleep(1)
+
+    if identity_call:
+        try:
+            json.loads(Path(opts["--output-schema"]).read_text())
+        except (OSError, ValueError) as e:
+            die(f"--output-schema file unreadable: {e}")
+        reply = dict(IDENTITY)
+        if mode == "bad_schema":
+            del reply["hair"]
+        message = "this is not json" if mode == "invalid_json" else json.dumps(reply)
+        Path(opts["-o"]).write_text(message)
+        emit({"type": "item.completed", "item": {"id": "item_2", "type": "agent_message", "text": message}})
+        emit({"type": "turn.completed", "usage": {"input_tokens": 1000, "cached_input_tokens": 500, "output_tokens": 100}})
+        return
 
     from make import make_sheet  # synthetic generator (fixtures/synthetic/make.py)
 

@@ -13,6 +13,9 @@ Notes on ambiguous spots
   ``$SPRITE_FORGE_ROOT`` then ``./sprites`` (docs/08 section 2).
 * ``plan`` prints the whole plan object under ``plan`` (not just its path).
 * ``--direction left`` on a mirrored left exits 1 with ``error_code: mirrored_direction``.
+* ``prompt`` returns ``{prompt, references_needed, warnings}`` and needs no profile; ``generate`` needs plan,
+  reference and profile (exit 3 otherwise) and exits 2 with ``{error_code, message, attempt, unit, status}`` on a
+  provider failure. ``--recovery`` is repeatable. ``doctor`` always exits 0.
 * ``--help`` prints argparse help to stdout and exits 0; it is not a JSON command.
 """
 
@@ -26,8 +29,9 @@ import sys
 import traceback
 from pathlib import Path
 
-from . import __version__, workflow
+from . import __version__, generation, identity, workflow
 from . import manifest as mf
+from .doctor import run_doctor
 from .errors import EXIT_INVALID, ForgeError
 from .plan import (
     BUNDLE_VIEW,
@@ -38,6 +42,7 @@ from .plan import (
     resolve_actions,
     save_plan,
 )
+from .prompt import build_prompt
 
 CID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 ACTION_RE = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
@@ -189,6 +194,36 @@ def cmd_plan(args):
     return {"plan": plan, "estimated_seconds": estimated_seconds(plan)}
 
 
+def _prompt_args(p):
+    _unit_args(p)
+    p.add_argument("--extra", help="free text for ADDITIONAL DIRECTION (max 500 chars)")
+    p.add_argument("--recovery", action="append", default=[], metavar="CODE", help="recovery code (repeatable)")
+
+
+@command("prompt", args=_prompt_args)
+def cmd_prompt(args):
+    """Print the action prompt (not saved)"""
+    cd = _cid(args)
+    mf.load(cd)
+    pr = build_prompt(load_plan(cd), identity.load_profile(cd), _action(args), args.direction, args.extra, args.recovery)
+    return {"prompt": pr.text, "references_needed": pr.references_needed, "warnings": pr.warnings}
+
+
+def _generate_args(p):
+    _prompt_args(p)
+    p.add_argument("--timeout", type=int, default=300, help="seconds for the Codex call")
+
+
+@command("generate", args=_generate_args)
+def cmd_generate(args):
+    """Generate a raw sheet with Codex as a new attempt"""
+    cd = _cid(args)
+    mf.load(cd)
+    return generation.generate_unit(cd, load_plan(cd), identity.load_profile(cd), _action(args), args.direction,
+                                    args.extra, args.recovery, args.timeout)
+
+
+
 def _import_raw_args(p):
     _unit_args(p)
     p.add_argument("file")
@@ -229,6 +264,52 @@ def cmd_status(args):
     return workflow.status_report(_cid(args))
 
 
+@command("doctor")
+def cmd_doctor(args):
+    """Check codex install / login / image feature and Python dependencies (always exit 0)"""
+    return run_doctor()
+
+
+def _ref_generate_args(p):
+    p.add_argument("cid")
+    p.add_argument("--description", required=True, help="character description")
+    p.add_argument("--count", type=int, default=1, choices=range(1, 5), metavar="1..4")
+    p.add_argument("--timeout", type=int, default=300, help="seconds per Codex call")
+
+
+@command("reference", "generate", args=_ref_generate_args)
+def cmd_reference_generate(args):
+    """Generate canonical reference candidates from a description (Case B)"""
+    return generation.generate_reference(_cid(args), args.description, args.count, args.timeout)
+
+
+def _ref_select_args(p):
+    p.add_argument("cid")
+    p.add_argument("attempt", help="reference attempt number NNN")
+
+
+@command("reference", "select", args=_ref_select_args)
+def cmd_reference_select(args):
+    """Make a generated reference attempt the canonical reference"""
+    return generation.select_reference(_cid(args), args.attempt)
+
+
+def _identity_args(p):
+    p.add_argument("cid")
+    p.add_argument("--timeout", type=int, default=300, help="seconds for the Codex call")
+    p.add_argument("--force", action="store_true", help="overwrite a profile edited by the user")
+    p.add_argument("--empty", action="store_true", help="write an all-unknown profile without calling Codex")
+
+
+@command("identity", "analyze", args=_identity_args)
+def cmd_identity_analyze(args):
+    """Analyze the reference with Codex and write character-profile.json"""
+    cd = _cid(args)
+    if args.empty:
+        return identity.write_empty(cd, args.force)
+    return identity.analyze(cd, args.timeout, args.force)
+
+
 # ---- entry point --------------------------------------------------------------------------
 
 def _emit(obj) -> None:
@@ -250,7 +331,7 @@ def main(argv: list[str]) -> int:
         _emit(handler(args))
         return 0
     except ForgeError as exc:
-        _emit({"error_code": exc.code, "message": exc.message})
+        _emit({"error_code": exc.code, "message": exc.message, **exc.extra})
         return exc.exit_code
     except Exception as exc:  # unexpected: still one JSON object on stdout
         traceback.print_exc()

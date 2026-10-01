@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "character-profile.llm.schema.json (docs/03 9, docs/08 5.2): identity object only, for codex --output-schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "silhouette",
+    "body_ratio",
+    "head_ratio",
+    "hair",
+    "face",
+    "eyes",
+    "clothing",
+    "primary_colors",
+    "secondary_colors",
+    "weapon",
+    "accessories",
+    "outline_style",
+    "shading_style",
+    "camera_angle",
+    "orientation"
+  ],
+  "properties": {
+    "silhouette": {
+      "type": "string"
+    },
+    "body_ratio": {
+      "type": "string"
+    },
+    "head_ratio": {
+      "type": "string"
+    },
+    "hair": {
+      "type": "string"
+    },
+    "face": {
+      "type": "string"
+    },
+    "eyes": {
+      "type": "string"
+    },
+    "clothing": {
+      "type": "string"
+    },
+    "primary_colors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "secondary_colors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "weapon": {
+      "type": "string"
+    },
+    "accessories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "outline_style": {
+      "type": "string"
+    },
+    "shading_style": {
+      "type": "string"
+    },
+    "camera_angle": {
+      "type": "string"
+    },
+    "orientation": {
+      "type": "string"
+    }
+  }
+}
