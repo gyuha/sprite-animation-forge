@@ -41,3 +41,10 @@ def make_client(root):
 @pytest.fixture
 def client(make_client):
     return make_client()
+
+
+@pytest.fixture
+def jc(make_client):
+    """TestClient entered as a context manager: runs the lifespan (startup recovery + the job worker)."""
+    with make_client() as c:
+        yield c

@@ -5,7 +5,9 @@ Notes on ambiguous spots
 * ``next_step`` (docs/10 §5.2 shows only ``"reference"``): reference -> plan -> generate -> export, derived
   from ``workflow.status_report`` (``export`` once every non-pending unit set is accepted/mirrored).
 * Card fields beyond ``id``/``created_at``/``next_step`` are not specified; see ``_card``.
-* Detail response: ``{character: {id, next_step}, manifest, status}`` with ``status`` = ``status_report``.
+* Detail response: ``{character: {id, next_step}, manifest, status}`` with ``status`` = ``status_report`` plus,
+  per unit, ``latest_generation_status`` (the latest attempt's ``generation_status``; ``interrupted`` after a
+  crash, docs/10 6) so the UI can show ``중단됨``.
 """
 
 from __future__ import annotations
@@ -74,4 +76,7 @@ def get_character(request: Request, cid: str) -> dict:
     cd = char_dir(request, cid)
     m = mf.load(cd)
     status = workflow.status_report(cd)
+    for row in status["units"]:
+        attempts = m["actions"].get(row["unit"], {}).get("attempts", {})
+        row["latest_generation_status"] = attempts[max(attempts)]["generation_status"] if attempts else None
     return {"character": {"id": cid, "next_step": _next_step(status)}, "manifest": m, "status": status}

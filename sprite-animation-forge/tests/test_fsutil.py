@@ -104,3 +104,14 @@ def test_fsutil_attempt_lock_busy_when_held(tmp_path):
         assert out == "busy"
     with fsutil.attempt_lock(d):  # released afterwards
         pass
+
+
+def test_attempt_lock_records_owner_pid(tmp_path):
+    import os
+
+    from sprite_forge.fsutil import attempt_lock
+
+    with attempt_lock(tmp_path):
+        assert (tmp_path / ".lock").read_text() == str(os.getpid())
+    with attempt_lock(tmp_path):  # reacquire: rewritten, not appended
+        assert (tmp_path / ".lock").read_text() == str(os.getpid())

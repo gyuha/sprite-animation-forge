@@ -199,3 +199,16 @@ def test_fake_codex_call_log_counts_image_generations_only(env, tmp_path):
     first = run(env, argv_for(tmp_path), FAKE_CODEX_CALL_LOG=str(log))
     second = run(env, argv_for(tmp_path), FAKE_CODEX_CALL_LOG=str(log))
     assert log.read_text().splitlines() == [f"image_gen {thread_id(first)}", f"image_gen {thread_id(second)}"]
+
+
+def test_fake_codex_delay_s_slows_the_call_but_still_succeeds(env, tmp_path):
+    import time
+
+    t0 = time.time()
+    fast = run(env, argv_for(tmp_path))
+    fast_s = time.time() - t0
+    t0 = time.time()
+    slow = run(env, argv_for(tmp_path), FAKE_CODEX_DELAY_S="0.7")
+    assert fast.returncode == 0 and slow.returncode == 0
+    assert time.time() - t0 >= 0.7 and time.time() - t0 > fast_s
+    assert len(images(env, thread_id(slow))) == 1

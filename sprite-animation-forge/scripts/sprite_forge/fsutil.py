@@ -5,7 +5,8 @@ Public API
 ``allocate_attempt(attempts_dir) -> (number "NNN", Path)``  mkdir-atomic, safe across processes.
 ``latest_attempt(attempts_dir) -> str | None``
 ``file_lock(path)``      blocking exclusive ``fcntl.flock`` (used by the manifest).
-``attempt_lock(dir)``    non-blocking ``<dir>/.lock``; raises ``ForgeError("busy")`` when held.
+``attempt_lock(dir)``    non-blocking ``<dir>/.lock``; raises ``ForgeError("busy")`` when held. The owner's PID
+    is written into the file (the file itself stays after release; docs/10 6 startup recovery checks the PID).
 ``atomic_write_bytes/text/json(path, ...)``, ``atomic_write_png(image, path)``  temp file + ``os.replace``.
 ``sha256_bytes(data)``, ``sha256_file(path)``  hex digests (no ``sha256:`` prefix).
 ``utc_now()``  ``YYYY-MM-DDTHH:MM:SSZ``.
@@ -95,6 +96,9 @@ def attempt_lock(attempt_dir):
             fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise ForgeError("busy", f"{attempt_dir} is being processed by another process") from None
+        f.truncate(0)  # record the owner (append mode: the write lands at offset 0); lets the server spot orphans
+        f.write(str(os.getpid()))
+        f.flush()
         try:
             yield
         finally:

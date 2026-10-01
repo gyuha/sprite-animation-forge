@@ -10,6 +10,8 @@ Environment:
   FAKE_CODEX_GRID   optional "ROWSxCOLS" of the synthetic sheet (default: 2x2)
   FAKE_CODEX_CALL_LOG optional file; one line `image_gen <thread_id>` is appended per image-generation
                     invocation (not for doctor probes or --output-schema identity calls)
+  FAKE_CODEX_DELAY_S optional float; seconds to sleep after the first agent_message event, before the image /
+                    identity result is produced (lets tests keep a call running for a while; killable)
   FAKE_CODEX_DOCTOR doctor probes (`--version`, `login status`, `features list`; no CODEX_HOME needed):
                     ok (default) | logged_out | image_disabled | old_version
 
@@ -167,6 +169,8 @@ def main():
     if mode == "hang":
         while True:
             time.sleep(1)
+
+    time.sleep(float(os.environ.get("FAKE_CODEX_DELAY_S") or 0))
 
     if identity_call:
         try:

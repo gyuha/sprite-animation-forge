@@ -214,9 +214,10 @@ def test_cli_process_is_deterministic(forge, raw_sheet):
     forge.ok("import-raw", "hero", "walk", raw_sheet)
     forge.ok("process", "hero", "walk")
     d = forge.root / "hero/walk/attempts/001"
-    first = {p.name: p.read_bytes() for p in d.glob("*.*") if p.name != "generation.json"}
+    skip = ("generation.json", ".lock")  # .lock holds the owner PID of the last process run (docs/10 6)
+    first = {p.name: p.read_bytes() for p in d.glob("*.*") if p.name not in skip}
     forge.ok("process", "hero", "walk")
-    assert first == {p.name: p.read_bytes() for p in d.glob("*.*") if p.name != "generation.json"}
+    assert first == {p.name: p.read_bytes() for p in d.glob("*.*") if p.name not in skip}
 
 
 def test_cli_accept_failing_qc_marks_forced(forge, tmp_path):

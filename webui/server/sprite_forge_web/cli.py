@@ -21,5 +21,6 @@ def main(argv=None) -> int:
 
     from .main import create_app
 
-    uvicorn.run(create_app(root=args.root), host=HOST, port=args.port)
+    # open SSE streams would otherwise keep a Ctrl-C shutdown waiting forever
+    uvicorn.run(create_app(root=args.root), host=HOST, port=args.port, timeout_graceful_shutdown=3)
     return 0
