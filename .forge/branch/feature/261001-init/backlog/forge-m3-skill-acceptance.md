@@ -15,7 +15,7 @@
   - `uv run pytest -v -q -k scenario` → 종료 코드 0, `scenario_1`~`scenario_6` 각각 최소 1건 PASSED
   - 시나리오 6: `left`는 Codex 호출 없이(가짜 codex 호출 횟수로 확인) `right`의 정확한 가로 반전, `animations.json` 키 8개, 방향 간 `body_height` 차이 ≤ 10%
   - `SKILL.md`에 frontmatter `name:`·`description:` 존재, `references/`에 7개 파일 존재 (`ls sprite-animation-forge/references | wc -l` → 7, 이 plan 이전엔 0)
-  - 자급성: `sprite-animation-forge/`를 임시 디렉터리로 복사해 그 안에서 `uv run python scripts/forge.py --help` 가 종료 코드 0이고 12개 명령(doctor init reference identity plan prompt generate import-raw process accept export status)이 모두 출력됨
+  - 자급성: `sprite-animation-forge/`를 임시 디렉터리로 복사해 복사본의 `scripts/forge.py`를 `uv run --project <저장소 루트> python <복사본>/scripts/forge.py --help` (저장소 밖 디렉터리에서 실행)로 실행했을 때 종료 코드 0이고 12개 명령(doctor init reference identity plan prompt generate import-raw process accept export status)이 모두 출력됨
   - 전체 `uv run pytest -m "not live" -q` 통과, passed ≥ 150
 
 ## Work slices
