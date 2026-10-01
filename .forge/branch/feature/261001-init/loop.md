@@ -16,11 +16,11 @@ wall: none
 - [x] C6. 가짜 codex provider 계약: `uv run pytest -q -k "codex_cli"` → 종료 코드 0, docs/11 §3.3의 9개 모드(success·no_rollout·no_image·multiple_images·image_gen_failed·exit_1·hang·invalid_png·config_warnings) 각각에 대응하는 테스트가 `PASSED` (`-v` 출력에서 모드 이름 9개 모두 확인)
 
 ## Check progress (모든 stop-condition 실행 뒤 갱신)
-- C1: pass ×0 · regressed: ×0 · last-evidence: "pytest not-live rc=0 passed=488" · tried:
-- C2: fail ×3 · regressed: ×0 · last-evidence: "scenario rc=0 passed=2 missing=[3, 4, 5, 6]" · tried:
+- C1: pass ×0 · regressed: ×0 · last-evidence: "pytest not-live rc=0 passed=524" · tried:
+- C2: fail ×4 · regressed: ×0 · last-evidence: "scenario rc=0 passed=2 missing=[3, 4, 5, 6]" · tried:
 - C3: pass ×0 · regressed: ×0 · last-evidence: "determinism rc=0 passed=13" · tried:
-- C4: pass ×0 · regressed: ×0 · last-evidence: "schema rc=0 passed=13" · tried:
-- C5: fail ×4 · regressed: ×0 · last-evidence: "help rc=0 missing=['doctor', 'identity', 'prompt', 'generate', 'export']; skill_frontmatter=False missing_refs=['animation-rules', 'prompt-rules', 'character-consistency', 'qc-rules', 'codex-image', 'phaser-export', 'examples']" · tried:
+- C4: pass ×0 · regressed: ×0 · last-evidence: "schema rc=0 passed=15" · tried:
+- C5: fail ×1 · regressed: ×0 · last-evidence: "help rc=0 missing=['export']; skill_frontmatter=False missing_refs=['animation-rules', 'prompt-rules', 'character-consistency', 'qc-rules', 'codex-image', 'phaser-export', 'examples']" · tried:
 - C6: pass ×0 · regressed: ×0 · last-evidence: "codex_cli rc=0 passed=17 missing_modes=[]" · tried:
 
 ## Authorized replan scope

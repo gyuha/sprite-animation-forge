@@ -8,6 +8,8 @@ Public API (``cd`` = character directory ``<root>/<cid>``)
 ``import_raw(cd, plan, action, direction, file) -> {attempt, unit}``
 ``process_attempt(cd, plan, action, direction, attempt=None, sets=None) -> {attempt, unit, qc}``
 ``accept_attempt(cd, plan, action, direction, attempt=None) -> {accepted, unit, forced, mirrored}``
+    Also (re)writes ``character-scale-profile.json`` when the unit is the scale reference (docs/06 5).
+``build_scale_profile(cd, plan, unit, action, attempt) -> dict``  the character-scale-profile.json content.
 ``derive_mirror(cd, action, source_unit, attempt) -> mirror unit path``
 ``status_report(cd) -> dict``
 
@@ -21,6 +23,15 @@ Notes on ambiguous spots
   The keyed reference is built with #FF00FF; a later key-colour switch needs ``make_keyed`` again.
 * ``accept`` of an attempt whose QC status is ``fail`` is allowed and recorded as ``forced: true``.
 * ``accept`` defaults to the latest attempt; it must have been processed (qc-report.json exists).
+* Scale profile: written by ``accept`` of a body unit when none exists and the unit is the reference unit
+  (single direction: any body action, i.e. the first accepted; multi-direction: the representative
+  direction unit such as ``idle/down``). Afterwards only re-accepting that same reference action/unit
+  rewrites it. ``center_x`` is the median ``mass_cx`` and ``feet_y`` the median ``feet_y`` of the
+  accepted output frames. Other accepted actions' QC is not recomputed when the profile changes.
+* ``manifest["scale_profile"]`` = {file, reference_action, reference_unit, reference_attempt};
+  ``manifest["forced_accepts"]`` lists units whose accepted attempt is forced (QC fail); a unit leaves
+  the list when re-accepted without force. ``unit["reprocess_count"]`` counts ``process --set`` runs
+  (recovery budget, docs/06 6.1).
 * Non-PNG raw files are re-encoded losslessly to ``raw.png``.
 """
 
@@ -32,6 +43,7 @@ import json
 import os
 import re
 import shutil
+import statistics
 from pathlib import Path
 
 import numpy as np
@@ -53,8 +65,11 @@ from .pipeline import PipelineError
 from .pipeline.chroma import KEY_MAGENTA, remove_background
 from .pipeline.process import process_sheet
 from .pipeline.scale import ScaleProfile
+from . import recovery, schemas
+from .pipeline.measure import measure_frame
 from .plan import process_params, resolve_unit, units
-from .qc import run_qc
+from .prompt import direction_reference_unit
+from .qc import run_qc, select_best_attempt
 
 SOURCE_EXT = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp"}
 OUTPUT_FILES = ("raw.png", "clean.png", "sheet.png", "process.json", "qc-report.json")
@@ -237,9 +252,22 @@ def process_attempt(cd, plan, action, direction, attempt=None, sets=None) -> dic
             raise ForgeError(exc.code, str(exc)) from None
         report = run_qc(result, action=action, params=params, profile=profile, attempt=attempt,
                         loop=act["loop"], qc_profile=act.get("qc_profile"))
+        entry = dict(mf.load(cd)["actions"].get(unit, {}))
+        if sets:
+            entry["reprocess_count"] = entry.get("reprocess_count", 0) + 1
+        others = [json.loads(p.read_text(encoding="utf-8")) for p in sorted((cd / unit / "attempts").glob("*/qc-report.json"))
+                  if p.parent.name != attempt]
+        best = select_best_attempt([*others, report])["attempt"]
+        recovery.attach(report, result.data, params, recovery.budget_state(entry, best))
         atomic_write_json(adir / "qc-report.json", report)
-    mf.update(cd, lambda m: _attempt_entry(m, unit, _kind(plan, action), attempt,
-                                           qc_status=report["status"], score=report["score"]))
+
+    def record(m):
+        ent = _attempt_entry(m, unit, _kind(plan, action), attempt, qc_status=report["status"], score=report["score"])
+        if sets:
+            m["actions"][unit]["reprocess_count"] = entry["reprocess_count"]
+        return ent
+
+    mf.update(cd, record)
     failed = [r["id"] for r in report["results"] if r["grade"] == "fail"]
     return {"attempt": attempt, "unit": unit,
             "qc": {"status": report["status"], "failed": failed, "recommendations": report["recommendations"]}}
@@ -278,6 +306,52 @@ def derive_mirror(cd, action, source_unit, attempt) -> str:
     return left
 
 
+def build_scale_profile(cd, plan, unit, action, attempt) -> dict:
+    """docs/06 5: body_height/width = median bbox of the accepted output frames; norm_scale = s x RH."""
+    cd = Path(cd)
+    data = json.loads((cd / unit / "process.json").read_text(encoding="utf-8"))
+    measures = [m for m in (measure_frame(np.array(Image.open(p).convert("RGBA")))
+                            for p in sorted((cd / unit / "frames").glob("*.png"))) if m]
+    if not measures:
+        raise ForgeError("empty_reference", f"{unit} attempt {attempt} has no foreground frames for a scale profile")
+    med = lambda vals: round(float(statistics.median(vals)), 2)  # noqa: E731
+    derived = data["derived"]
+    return {
+        "schema_version": 1,
+        "character": mf.load(cd)["character"],
+        "reference_action": action,
+        "reference_attempt": attempt,
+        "target_cell": [plan["cell"]["w"], plan["cell"]["h"]],
+        "baseline_y": derived["baseline_y"],
+        "body_height": med([m.h for m in measures]),
+        "body_width": med([m.w for m in measures]),
+        "feet_y": med([m.feet_y for m in measures]),
+        "center_x": med([m.mass_cx for m in measures]),
+        "norm_scale": round(derived["scale"] * derived["raw_cell_height"], 2),
+        "raw_cell_height": derived["raw_cell_height"],
+    }
+
+
+def _update_scale_profile(cd, plan, unit, action, attempt) -> str | None:
+    if _kind(plan, action) != "body":
+        return None
+    path = cd / "character-scale-profile.json"
+    ref_unit = direction_reference_unit(plan)
+    if ref_unit is not None and unit != ref_unit:
+        return None
+    if path.exists():
+        current = mf.load(cd).get("scale_profile", {}).get("reference_unit")
+        if unit != current:
+            return None
+    profile = build_scale_profile(cd, plan, unit, action, attempt)
+    schemas.validate("character-scale-profile", profile)
+    state = "updated" if path.exists() else "created"
+    atomic_write_json(path, profile)
+    mf.update(cd, lambda m: m.__setitem__("scale_profile", {
+        "file": path.name, "reference_action": action, "reference_unit": unit, "reference_attempt": attempt}))
+    return state
+
+
 def accept_attempt(cd, plan, action, direction, attempt=None) -> dict:
     cd = Path(cd)
     unit, direction, _ = resolve_unit(plan, action, direction)
@@ -300,8 +374,11 @@ def accept_attempt(cd, plan, action, direction, attempt=None) -> dict:
         ent = mf.unit_entry(m, unit, _kind(plan, action))
         ent["accepted_attempt"] = attempt
         ent["forced"] = forced
+        listed = [u for u in m.get("forced_accepts", []) if u != unit]
+        m["forced_accepts"] = [*listed, unit] if forced else listed
 
     mf.update(cd, apply)
+    _update_scale_profile(cd, plan, unit, action, attempt)
     mirrored = []
     eff = plan["actions"][action].get("directions", plan["directions"])
     if direction == "right" and len(plan["directions"]) > 1 and plan.get("mirror", {}).get("left") == "right" and "left" in eff:

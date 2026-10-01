@@ -183,7 +183,7 @@ def test_cli_end_to_end_manual_path(forge, tmp_path):
     for name in ("raw.png", "clean.png", "sheet.png", "process.json", "qc-report.json"):
         assert (cd / "walk" / name).read_bytes() == (a1 / name).read_bytes()
     assert sorted(p.name for p in (cd / "walk/frames").iterdir()) == [f"{i:03d}.png" for i in range(6)]
-    assert not (cd / "character-scale-profile.json").exists()
+    assert json.loads((cd / "character-scale-profile.json").read_text())["reference_action"] == "walk"  # first body accept (M3-a)
 
     status = forge.ok("status", "hero")
     rows = {r["unit"]: r for r in status["units"]}
