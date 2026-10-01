@@ -8,7 +8,7 @@ wall: none
 
 ## Stop-condition checks (ALL must pass)
 모든 명령은 저장소 루트(`/Users/gyuha/workspace/sprite-animation-forge`)에서 실행한다.
-- [ ] C1. `uv run pytest -m "not live" -q` → 종료 코드 0, `passed` ≥ 150, `failed`/`error` 0 (개수 하한은 빈 테스트로 통과하는 것을 막는 장치)
+- [x] C1. `uv run pytest -m "not live" -q` → 종료 코드 0, `passed` ≥ 150, `failed`/`error` 0 (개수 하한은 빈 테스트로 통과하는 것을 막는 장치)
 - [ ] C2. 인수 시나리오 6종(docs/11 §5의 1~6)이 각각 테스트로 존재하고 통과한다: `uv run pytest -v -q -k "scenario" 2>&1` 출력에 `scenario_1`~`scenario_6` 각각이 `PASSED`로 최소 1건, 종료 코드 0 (시나리오 1·2·6 = 수동 raw/가짜 codex로 CLI end-to-end, 3 = hero 번들 export 산출물 구조 검증, 4 = QC-07 preserve > fit 대조, 5 = 복구 권장 1순위 3종)
 - [ ] C3. 결정성: `uv run pytest -q -k determinism` → 종료 코드 0, `passed` ≥ 1 (같은 입력 `process` 2회의 모든 출력 sha256 동일)
 - [ ] C4. 스키마: `uv run pytest -q -k schema` → 종료 코드 0, `passed` ≥ 5 (animation-plan · character-profile · character-scale-profile · qc-report · manifest 산출물이 `schemas/*.schema.json` 검증을 통과)
@@ -16,12 +16,12 @@ wall: none
 - [ ] C6. 가짜 codex provider 계약: `uv run pytest -q -k "codex_cli"` → 종료 코드 0, docs/11 §3.3의 9개 모드(success·no_rollout·no_image·multiple_images·image_gen_failed·exit_1·hang·invalid_png·config_warnings) 각각에 대응하는 테스트가 `PASSED` (`-v` 출력에서 모드 이름 9개 모두 확인)
 
 ## Check progress (모든 stop-condition 실행 뒤 갱신)
-- C1: fail ×1 · regressed: ×0 · last-evidence: "pytest not-live rc=0 passed=130" · tried:
-- C2: fail ×2 · regressed: ×0 · last-evidence: "scenario rc=5 passed=0 missing=[1, 2, 3, 4, 5, 6]" · tried:
-- C3: fail ×2 · regressed: ×0 · last-evidence: "determinism rc=5 passed=0" · tried:
-- C4: fail ×2 · regressed: ×0 · last-evidence: "schema rc=5 passed=0" · tried:
-- C5: fail ×2 · regressed: ×0 · last-evidence: "help rc=2 missing=['doctor', 'init', 'reference', 'identity', 'plan', 'prompt', 'generate', 'import-raw', 'process', 'accept', 'export', 'status']; skill_frontmatter=False missing_refs=['animation-rules', 'prompt-rules', 'character-consistency', 'qc-rules', 'codex-image', 'phaser-export', 'examples']" · tried:
-- C6: fail ×2 · regressed: ×0 · last-evidence: "codex_cli rc=5 passed=0 missing_modes=['success', 'no_rollout', 'no_image', 'multiple_images', 'image_gen_failed', 'exit_1', 'hang', 'invalid_png', 'config_warnings']" · tried:
+- C1: pass ×0 · regressed: ×0 · last-evidence: "pytest not-live rc=0 passed=184" · tried:
+- C2: fail ×3 · regressed: ×0 · last-evidence: "scenario rc=5 passed=0 missing=[1, 2, 3, 4, 5, 6]" · tried:
+- C3: fail ×3 · regressed: ×0 · last-evidence: "determinism rc=5 passed=0" · tried:
+- C4: fail ×3 · regressed: ×0 · last-evidence: "schema rc=5 passed=0" · tried:
+- C5: fail ×3 · regressed: ×0 · last-evidence: "help rc=2 missing=['doctor', 'init', 'reference', 'identity', 'plan', 'prompt', 'generate', 'import-raw', 'process', 'accept', 'export', 'status']; skill_frontmatter=False missing_refs=['animation-rules', 'prompt-rules', 'character-consistency', 'qc-rules', 'codex-image', 'phaser-export', 'examples']" · tried:
+- C6: fail ×3 · regressed: ×0 · last-evidence: "codex_cli rc=5 passed=0 missing_modes=['success', 'no_rollout', 'no_image', 'multiple_images', 'image_gen_failed', 'exit_1', 'hang', 'invalid_png', 'config_warnings']" · tried:
 
 ## Authorized replan scope
 - 실패한 stop-condition 검사에 직접 대응하는 fix-forward 작업만 자동 생성한다. 구현 대상은 `pyproject.toml`, `sprite-animation-forge/`(Core 패키지·스키마·테스트·SKILL.md·references), `uv.lock`, 테스트 픽스처 생성 코드로 한정한다.
