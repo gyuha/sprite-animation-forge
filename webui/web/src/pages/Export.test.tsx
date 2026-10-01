@@ -118,4 +118,12 @@ describe('Export', () => {
     expect(await screen.findByTestId('export-file-atlas/hero.png')).toBeInTheDocument()
     expect(fetchMock.mock.calls.filter(([, i]) => i?.method === 'POST')).toHaveLength(1)
   })
+
+  it('links to the animation viewer', async () => {
+    mockApi(routes(bothAccepted))
+    renderPage()
+    const link = await screen.findByTestId('export-view-link')
+    expect(link).toHaveAttribute('href', '/c/hero/view')
+    expect(link).toHaveTextContent('애니메이션 보기')
+  })
 })

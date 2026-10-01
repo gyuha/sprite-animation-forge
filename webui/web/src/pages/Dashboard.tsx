@@ -5,13 +5,14 @@
  *   copy-codex-login            `codex login` 복사 버튼
  *   dashboard-empty             캐릭터가 하나도 없을 때의 빈 상태
  *   character-card-<id>         캐릭터 카드(링크)
+ *   character-view-<id>         카드 아래 "애니메이션 보기" 버튼(/c/<id>/view)
  *   character-progress-<id>     채택 unit 진행 막대
  *   character-next-<id>         다음 할 일 배지
  *   character-batch-<id>        진행 중인 일괄 생성 문구 ("hero: 2/4 · walk 생성 중") + 진행 막대(data-percent)
  */
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { AlertTriangle, Plus } from 'lucide-react'
+import { AlertTriangle, Play, Plus } from 'lucide-react'
 import { useCharacters, useHealth, useJobs, type CharacterCard } from '@/api/queries'
 import { isActive, type JobSnapshot } from '@/api/sse'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -62,7 +63,8 @@ function CharacterCardView({ c, batch }: { c: CharacterCard; batch?: JobSnapshot
   const next = NEXT_STEP[c.next_step]
   const pct = c.units_total ? (c.units_accepted / c.units_total) * 100 : 0
   return (
-    <Link to={next.to(c.id)} data-testid={`character-card-${c.id}`}>
+    <div className="flex flex-col gap-2">
+    <Link to={next.to(c.id)} className="flex-1" data-testid={`character-card-${c.id}`}>
       <Card className="h-full transition-colors hover:bg-muted/50">
         <CardHeader>
           <CardTitle>{c.id}</CardTitle>
@@ -80,6 +82,10 @@ function CharacterCardView({ c, batch }: { c: CharacterCard; batch?: JobSnapshot
         </CardContent>
       </Card>
     </Link>
+    <Button asChild variant="outline" size="sm">
+      <Link to={`/c/${c.id}/view`} data-testid={`character-view-${c.id}`}><Play /> 애니메이션 보기</Link>
+    </Button>
+    </div>
   )
 }
 

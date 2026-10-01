@@ -17,7 +17,7 @@ export interface Server {
   /** setup / observation helpers that talk to the API directly (never used for the asserted UI flow) */
   api(path: string, init?: RequestInit): Promise<any>
   /** creates a character with the reference image, an analyzed identity and a plan for `bundle` */
-  seedCharacter(id: string, bundle: string): Promise<void>
+  seedCharacter(id: string, bundle: string, view?: 'side' | 'topdown'): Promise<void>
   waitJob(jobId: string): Promise<any>
 }
 
@@ -103,14 +103,14 @@ export const test = base.extend<{ server: Server }>({
         await waitUp(url, child)
       },
       kill,
-      async seedCharacter(id, bundle) {
-        await post('/api/characters', { id, view: 'side', art_style: 'project_native', asset_type: 'character' })
+      async seedCharacter(id, bundle, view = 'side') {
+        await post('/api/characters', { id, view, art_style: 'project_native', asset_type: 'character' })
         const form = new FormData()
         form.set('file', new Blob([readFileSync(REFERENCE_PNG)], { type: 'image/png' }), 'reference.png')
         await api(`/api/characters/${id}/reference`, { method: 'POST', body: form })
         const { job } = await post(`/api/characters/${id}/identity/analyze`)
         expect((await waitJob(job.id)).state).toBe('succeeded')
-        await post(`/api/characters/${id}/plan`, { bundle })
+        await post(`/api/characters/${id}/plan`, view === 'topdown' ? { actions: [bundle], view, directions: ['down', 'up', 'right', 'left'], mirror: true } : { bundle })
       },
     }
     await use(server)

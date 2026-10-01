@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useMatch } from 'react-router-dom'
 import { useJobEvents } from '@/api/sse'
 import { BatchNotifier } from '@/components/BatchNotifier'
 import { CodexStatusBadge } from '@/components/CodexStatusBadge'
@@ -16,6 +16,7 @@ const NAV = [
 
 export default function AppLayout() {
   useJobEvents()
+  const cid = useMatch('/c/:cid/*')?.params.cid
   return (
     <TooltipProvider>
       <header className="flex h-14 items-center gap-6 border-b px-6">
@@ -31,6 +32,11 @@ export default function AppLayout() {
               {n.label}
             </NavLink>
           ))}
+          {cid && (
+            <NavLink to={`/c/${cid}/view`} className={({ isActive }) => cn('text-muted-foreground hover:text-foreground', isActive && 'font-medium text-foreground')} data-testid="nav-view">
+              애니메이션
+            </NavLink>
+          )}
         </nav>
         <div className="ml-auto flex items-center gap-3">
           <CodexStatusBadge />

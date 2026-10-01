@@ -7,6 +7,7 @@ import NewCharacter from '@/pages/NewCharacter'
 import Plan from '@/pages/Plan'
 import Status from '@/pages/Status'
 import Studio from '@/pages/Studio'
+import Viewer from '@/pages/Viewer'
 import { routes } from './routes'
 
 /** The page component rendered for a URL (inside the AppLayout route). */
@@ -24,6 +25,7 @@ describe('routes', () => {
     ['/c/hero/studio', Studio],
     ['/c/hero/studio/walk', Studio],
     ['/c/hero/studio/walk/up', Studio],
+    ['/c/hero/view', Viewer],
     ['/c/hero/export', Export],
     ['/status', Status],
   ])('%s renders the right page', (url, page) => {
