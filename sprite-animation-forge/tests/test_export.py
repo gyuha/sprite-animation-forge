@@ -288,7 +288,7 @@ def _gif_frames(data):
 
 
 def test_gif_frame_duration_rule():
-    assert [gf.frame_duration_ms(f) for f in (6, 10, 12, 24, 60)] == [170, 100, 80, 40, 20]
+    assert [gf.frame_duration_ms(f) for f in (6, 8, 10, 12, 24, 60)] == [170, 130, 100, 80, 40, 20]
 
 
 def test_gif_frames_durations_loop_and_last_hold():

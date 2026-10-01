@@ -2,7 +2,7 @@
 
 Public API
 ----------
-``frame_duration_ms(fps) -> int``  ``round(1000 / fps / 10) * 10``.
+``frame_duration_ms(fps) -> int``  ``floor(1000 / fps / 10 + 0.5) * 10`` (docs/05 §10: one rounding rule, never Python's banker's ``round``).
 ``render_gif(frames, fps) -> bytes``  deterministic bytes for a list of RGBA PIL frames.
 
 Notes on ambiguous spots
@@ -15,6 +15,7 @@ Notes on ambiguous spots
 from __future__ import annotations
 
 import io
+import math
 
 import numpy as np
 from PIL import Image
@@ -24,7 +25,7 @@ TRANSPARENT_INDEX = 255
 
 
 def frame_duration_ms(fps: int) -> int:
-    return round(1000 / fps / 10) * 10
+    return math.floor(round(1000 / fps / 10, 4) + 0.5) * 10
 
 
 def _to_paletted(frame: Image.Image) -> Image.Image:
