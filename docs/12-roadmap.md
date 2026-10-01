@@ -33,7 +33,7 @@ flowchart LR
 
 Codex 동작의 남은 불확실성을 먼저 없앤다. 스파이크 결과에 따라 03 문서의 호출 규약이 바뀔 수 있기 때문이다.
 
-1. 스파이크 S-1 ~ S-9 실행([03](03-codex-image-provider.md) §14) → 검증: 결과가 03 §2 표에 행으로 추가됨
+1. 스파이크 S-1 ~ S-10 실행([03](03-codex-image-provider.md) §14) → 검증: 결과가 03 §2 표에 행으로 추가됨
 2. `pyproject.toml`(uv 워크스페이스), `sprite-animation-forge/` 디렉터리, `webui/` 디렉터리 생성 → 검증: `uv run pytest`가 0개 테스트로 성공, `pnpm --dir webui/web dev`가 빈 페이지를 띄움
 3. [03](03-codex-image-provider.md) §2·§6·§7의 이벤트·파일 형식으로 가짜 codex 작성 → 검증: 가짜 codex가 `success` 모드에서 `generated_images/<thread_id>/`에 PNG를 씀
 
@@ -45,6 +45,7 @@ Codex 없이 `import-raw`로 넣은 이미지를 처리한다. 가장 큰 작업
 2. `qc`(QC-01~07, 09) 구현([06](06-qc-and-recovery.md)) → 검증: 항목별 경계값 테스트, 적용 매트릭스 테스트 통과
 3. `manifest`, `fsutil`(attempt 번호, 잠금, 원자적 쓰기) → 검증: 동시 쓰기 테스트 통과
 4. `forge.py init / reference import / plan / import-raw / process / accept / status` → 검증: CLI 테스트(stdout JSON, 종료 코드)
+   - 방향 지원: plan `directions`·`mirror`, unit 경로(`<action>/<direction>`), `--direction`, `right` 채택 시 `left` 좌우반전 파생([02](02-skill-spec.md) §8.1) → 검증: `asymmetric_right` 픽스처로 반전 결과 픽셀 일치, `--direction left` 오류 코드 `mirrored_direction`
 5. golden(로컬 샘플)·결정성 테스트 → 검증: [11](11-testing.md) §3.2 속성 기준 통과, 두 번 처리한 해시 동일
 
 **M1 완료 = PRD 시나리오 1·2를 수동 raw로 통과**
@@ -52,7 +53,7 @@ Codex 없이 `import-raw`로 넣은 이미지를 처리한다. 가장 큰 작업
 ### M2. Codex provider와 프롬프트 — M
 
 1. `providers/codex_cli.py`([03](03-codex-image-provider.md) §15) → 검증: 가짜 codex 모드 9종 테스트 통과
-2. `prompt.py` + 템플릿 → 검증: [04](04-prompt-rules.md) §8 규칙 테스트, 스냅샷 테스트
+2. `prompt.py` + 템플릿 → 검증: [04](04-prompt-rules.md) §8 규칙 테스트, 스냅샷 테스트 (방향별 CAMERA 문구, `DIRECTION REFERENCE` 블록, 대표 방향 sheet 추가 첨부 포함)
 3. `identity.py`(`--output-schema`), `reference generate/select` → 검증: 가짜 codex로 profile 생성, live 1회 스키마 통과
 4. `forge.py doctor / generate / prompt` → 검증: live 계약 테스트 통과
 
@@ -62,7 +63,7 @@ Codex 없이 `import-raw`로 넣은 이미지를 처리한다. 가장 큰 작업
 
 1. Character Scale Profile, QC-07, preserve 배율 → 검증: `wide_attack` 대조 테스트(시나리오 4)
 2. `recovery.py` 권장 조치 → 검증: 시나리오 5 합성 입력 3종의 1순위 조치 일치
-3. `export/atlas.py`, `phaser.py`, `gif.py`, 검증 로직 → 검증: Phaser 스모크 통과, `anchor` 필드 동작 여부 확인 후 07 문서 갱신
+3. `export/atlas.py`, `phaser.py`, `gif.py`, 검증 로직 (방향별 행·프레임 이름·`animations.json` 키, `atlas_too_large` 한도 계산 포함) → 검증: Phaser 스모크 통과, `anchor` 필드 동작 여부 확인 후 07 문서 갱신
 4. `SKILL.md`, `references/*.md` 작성([02](02-skill-spec.md) §10–11) → 검증: Claude Code에서 "이 캐릭터로 idle, walk, run, attack 만들어줘"를 실행해 질문 없이 export까지 완료
 
 **M3 완료 = 시나리오 3·4·5 통과 (가짜 codex), Skill 모드 end-to-end 1회 성공 (live)**
@@ -83,6 +84,7 @@ Codex 없이 `import-raw`로 넣은 이미지를 처리한다. 가장 큰 작업
 3. S5 스튜디오: 애니메이션 플레이어, GridOverlay, QC 패널, 권장 조치, 재처리 패널, attempt 기록
 4. S6 내보내기, S7 상태
 5. 일괄 생성 흐름([09](09-web-ui.md) §7)
+6. 탑다운 방향 UI: S4 방향 선택·mirror 스위치, S5 방향 탭([09](09-web-ui.md) §4 S4·S5)
 
 검증:
 
@@ -123,7 +125,7 @@ PRD §33–§34 항목과, 이 문서들에서 MVP 밖으로 미룬 항목이다
 |---|---|---|
 | Phase 2 | Character Consistency Scoring (QC-08, 비전 모델 0–100점) | PRD §33 |
 | Phase 2 | Automatic Best-of-N (후보 N개 생성 후 QC 점수로 선택) | PRD §33 |
-| Phase 2 | Direction Generation (left/right/up/down, topdown 4방향 walk) | PRD §33 |
+| Phase 2 | 8방향(대각선) 생성. 4방향(down·up·right·left)은 MVP에 포함([02](02-skill-spec.md) §8.1) | PRD §33 |
 | Phase 2 | Animation Semantic QC (cycle 연속성, attack anticipation/impact/recovery) | PRD §33 |
 | Phase 2 | FX 자동 분리 권장(원인 추정 휴리스틱) | [06](06-qc-and-recovery.md) §7 |
 | Phase 2 | 픽셀 아트 팔레트 양자화·격자 복원 | [05](05-sprite-pipeline.md) §7.3 |

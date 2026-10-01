@@ -175,7 +175,7 @@ data: {"id":"job_3f9a1c2b7d10","state":"succeeded","stage":"qc","result":{"attem
 | POST | `/api/characters/{cid}/actions/{action}/attempts/{aid}/process` | 동기 | 재처리 |
 | POST | `/api/characters/{cid}/actions/{action}/attempts/{aid}/accept` | 동기 | 채택 |
 | POST | `/api/characters/{cid}/actions/{action}/save-params` | 동기 | 재처리 파라미터를 plan 기본값으로 저장 |
-| POST | `/api/characters/{cid}/generate-all` | Job | 일괄 생성 |
+| POST | `/api/characters/{cid}/generate-all` | Job | 일괄 생성(방향이 여러 개면 unit을 `down → right → up` 순으로 나열, mirror 파생 unit 제외) |
 | POST | `/api/characters/{cid}/export` | 동기 | 내보내기 실행 |
 | GET | `/api/characters/{cid}/export.zip` | 동기 | ZIP 다운로드 |
 | GET | `/api/jobs` | 동기 | Job 목록(`?active=1`) |
@@ -183,6 +183,8 @@ data: {"id":"job_3f9a1c2b7d10","state":"succeeded","stage":"qc","result":{"attem
 | POST | `/api/jobs/{jid}/cancel` | 동기 | 취소 |
 | GET | `/api/events` | SSE | 전체 Job 이벤트 |
 | GET | `/files/{cid}/{path}` | 동기 | 캐릭터 디렉터리 파일 |
+
+**방향(탑다운)**: plan의 `directions`가 2개 이상이면 `/actions/{action}/…` 하위 모든 엔드포인트(`prompt`, `generate`, `upload`, `attempts`, `process`, `accept`, `save-params`)가 쿼리 `?direction=down|up|right|left`를 받고, 이때 필수다. 방향이 1개면 생략한다. mirror로 파생되는 `left`에 `generate`/`upload`/`process`/`accept`를 호출하면 `409 mirrored_direction`이다. `right`를 `accept`하면 같은 응답 트랜잭션에서 `left`가 파생되고 응답에 `derived: ["walk/left"]`가 포함된다. Job과 SSE 이벤트의 대상은 `action`과 `direction` 두 필드로 표시한다([02](02-skill-spec.md) §8.1).
 
 ### 5.2 주요 요청·응답
 

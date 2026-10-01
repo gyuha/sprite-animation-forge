@@ -325,3 +325,4 @@ Web UI 서버는 사용자의 Codex 로그인 세션으로 모델을 호출하�
 | ADR-008 | 서버는 `127.0.0.1` 전용 | LAN 공개 옵션 | §9 계정 공유 문제 |
 | ADR-009 | Codex 호출 전역 동시 실행 1개 | 병렬 N개 | rate limit 동작 미검증, 사용량 보호. 스파이크 S-4 결과에 따라 재검토 |
 | ADR-010 | UI 컴포넌트는 shadcn/ui | 직접 구현, MUI·Ant Design 등 패키지형 라이브러리 | Tailwind 기반이라 스택과 일치. 소스 복사 방식이라 lockfile 외 런타임 의존성이 늘지 않고 필요한 것만 설치 |
+| ADR-011 | 탑다운 4방향은 down·up·right 생성 + left는 right 좌우반전, 반전 프레임도 atlas에 포함 | 4방향 전부 Codex 생성, 엔진 `setFlipX`에 위임 | 호출 25% 절감, 좌우 일관성 보장. 게임 코드가 단순해지는 대신 atlas가 커짐(cell 256에서 `topdown-rpg`는 한도 초과). 비대칭 캐릭터는 `mirror={}`로 별도 생성. [02](02-skill-spec.md) §8.1 |

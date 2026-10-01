@@ -17,7 +17,7 @@
 
 | 조건 | 미충족 시 |
 |---|---|
-| plan의 모든 액션이 채택됨 | 채택된 액션만 내보내고 `warnings`에 `missing_actions: [...]` |
+| plan의 모든 액션이 채택됨(방향이 여러 개면 모든 unit, `walk/up` 형식) | 채택된 unit만 내보내고 `warnings`에 `missing_actions: [...]` |
 | 모든 액션의 cell 크기가 같음 | 오류 `cell_mismatch` (MVP는 캐릭터당 단일 cell 크기) |
 | 강제 채택(forced accept)된 액션 | 내보내되 루트 `qc-report.json`의 `forced_accepts`에 기록 |
 
@@ -25,9 +25,9 @@
 
 ## 3. Atlas 배치
 
-MVP는 단순하고 결정적인 **행 단위 배치**를 쓴다. 액션 하나가 한 행이다. 트리밍·회전·빈 공간 채우기(bin packing)는 하지 않는다. 텍스처가 조금 커지는 대신 디버깅이 쉽고, 모든 프레임이 같은 크기라 원점 처리가 단순하다.
+MVP는 단순하고 결정적인 **행 단위 배치**를 쓴다. 액션 하나(방향이 여러 개인 plan에서는 unit 하나, 예: `walk/up`)가 한 행이다. 트리밍·회전·빈 공간 채우기(bin packing)는 하지 않는다. 텍스처가 조금 커지는 대신 디버깅이 쉽고, 모든 프레임이 같은 크기라 원점 처리가 단순하다.
 
-- 행 순서: plan의 `order` (body 액션 먼저, FX는 그 뒤)
+- 행 순서: plan의 `order` (body 액션 먼저, FX는 그 뒤). 방향이 여러 개면 액션 안에서 `down, up, right, left` 순
 - 프레임 위치: `x = pad + i × (CW + pad)`, `y = pad + row × (CH + pad)`
 - `pad = 2`px (선형 필터링 시 이웃 프레임 색이 번지는 것을 방지)
 - 텍스처 크기: `W = pad + max_frames × (CW + pad)`, `H = pad + rows × (CH + pad)`
@@ -37,11 +37,13 @@ MVP는 단순하고 결정적인 **행 단위 배치**를 쓴다. 액션 하나�
 
 `side-action` 번들(액션 8개, 최대 8프레임) → `1042 × 1042`. 4096 한도까지 여유가 크다.
 
+**탑다운 4방향**은 행이 방향 수만큼 늘어난다. mirror로 파생된 `left`도 **실제 프레임으로 atlas에 포함**한다(게임 코드에서 `setFlipX`를 따로 다루지 않아도 되도록. 대신 텍스처가 커진다). cell 128 기준 최대 행 수는 `⌊(4096 − 2) / 130⌋ = 31`, cell 256은 `⌊4094 / 258⌋ = 15`다. `topdown-rpg`(5액션 × 4방향 = 20행)는 128에서 `1042 × 2602`로 들어가지만 256에서는 `atlas_too_large`다. 다중 atlas는 Phase 2이므로 MVP에서는 액션·방향을 줄이거나 cell을 128로 쓴다.
+
 ---
 
 ## 4. `atlas/hero.json` (Phaser JSON Hash)
 
-Phaser `this.load.atlas()`가 읽는 JSON Hash 형식이다. 프레임 이름은 PRD §25를 따라 `<action>_<index>`(0부터)다.
+Phaser `this.load.atlas()`가 읽는 JSON Hash 형식이다. 프레임 이름은 PRD §25를 따라 `<action>_<index>`(0부터)다. 방향이 2개 이상인 plan에서는 `<action>_<direction>_<index>`(예: `walk_up_3`)다.
 
 ```json
 {
@@ -93,6 +95,17 @@ PRD §25 형식을 그대로 쓴다. 필드를 추가하지 않는다. 추가 �
 ```
 
 `repeat`는 loop 액션이면 `-1`, 아니면 `0`이다.
+
+방향이 2개 이상인 plan에서는 unit마다 항목이 하나 생기고 키가 `<action>_<direction>`이다. 필드는 추가하지 않는다.
+
+```json
+{
+  "walk_down":  { "frames": ["walk_down_0", "walk_down_1", "walk_down_2", "walk_down_3", "walk_down_4", "walk_down_5"], "frameRate": 10, "repeat": -1 },
+  "walk_up":    { "frames": ["walk_up_0", "walk_up_1", "walk_up_2", "walk_up_3", "walk_up_4", "walk_up_5"], "frameRate": 10, "repeat": -1 },
+  "walk_right": { "frames": ["walk_right_0", "walk_right_1", "walk_right_2", "walk_right_3", "walk_right_4", "walk_right_5"], "frameRate": 10, "repeat": -1 },
+  "walk_left":  { "frames": ["walk_left_0", "walk_left_1", "walk_left_2", "walk_left_3", "walk_left_4", "walk_left_5"], "frameRate": 10, "repeat": -1 }
+}
+```
 
 ---
 
@@ -150,6 +163,16 @@ hero.play('hero-idle');
 
 - 픽셀 아트 스타일이면 게임 설정에 `pixelArt: true`를 둔다.
 - 왼쪽을 볼 때는 `hero.setFlipX(true)`. side view는 오른쪽 방향만 생성한다(좌우 반전은 엔진이 처리).
+- 탑다운 4방향 plan은 `left`까지 atlas에 들어 있어 `setFlipX`가 필요 없다. 이동 방향에 따라 애니메이션 key만 고른다.
+
+```js
+// 탑다운: 마지막으로 바라본 방향('down' | 'up' | 'right' | 'left')을 기억해 idle/walk key를 고른다
+let facing = 'down';
+function update(vx, vy) {
+  if (vx || vy) facing = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
+  hero.play(`hero-${vx || vy ? 'walk' : 'idle'}_${facing}`, true);
+}
+```
 
 ---
 
@@ -164,7 +187,7 @@ hero.play('hero-idle');
   "cell": { "w": 128, "h": 128 },
   "origin": { "x": 0.5, "y": 0.921875 },
   "frames": [
-    { "name": "idle_0", "action": "idle", "index": 0, "x": 2, "y": 2, "w": 128, "h": 128 }
+    { "name": "idle_0", "action": "idle", "direction": null, "index": 0, "x": 2, "y": 2, "w": 128, "h": 128 }
   ],
   "animations": {
     "idle": { "frames": ["idle_0", "idle_1", "idle_2", "idle_3"], "fps": 6, "loop": true }
@@ -176,7 +199,7 @@ hero.play('hero-idle');
 
 ## 9. 미리보기 GIF
 
-`preview/<action>.gif`를 액션마다 만든다(PRD §39).
+`preview/<action>.gif`를 액션마다 만든다(PRD §39). 방향이 2개 이상인 plan에서는 unit마다 `preview/<action>_<direction>.gif`다.
 
 | 항목 | 규칙 |
 |---|---|

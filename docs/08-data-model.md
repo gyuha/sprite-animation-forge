@@ -55,6 +55,10 @@ sprites/
     │       └── 002/ …
     │
     ├── walk/ run/ attack/ …
+    │                                      # ── 방향이 2개 이상인 plan(탑다운)의 구조 ──
+    ├── walk/                              # <action>/<direction>/ 가 위 idle/ 와 같은 구조를 가짐
+    │   ├── down/ up/ right/               #   Codex 생성 unit (raw.png, frames/, attempts/ …)
+    │   └── left/                          #   mirror 파생: frames/, sheet.png, mirror.json (attempts/ 없음)
     ├── fx/
     │   └── slash_fx/ …                    # 액션과 같은 구조
     ├── atlas/
@@ -96,9 +100,11 @@ sprites/
 |---|---|---|
 | character_id | `^[a-z0-9][a-z0-9-]{0,39}$` | `hero`, `red-knight` |
 | action 이름 | `^[a-z][a-z0-9_]{0,31}$`. 프리셋 이름 또는 custom | `idle`, `slash_fx`, `victory_pose` |
-| attempt 번호 | 3자리 0 채움, 액션별 단조 증가, 최대 999 | `001` |
+| 방향 | `right`, `left`, `up`, `down` | `up` |
+| unit 경로 | plan `directions`가 1개면 `<action>`, 2개 이상이면 `<action>/<direction>` | `walk`, `walk/up` |
+| attempt 번호 | 3자리 0 채움, **unit별** 단조 증가, 최대 999 | `001` |
 | 프레임 파일 | 3자리 0 채움, 0부터 | `frames/000.png` |
-| atlas 프레임 이름 | `<action>_<index>`, 0부터 | `walk_5` |
+| atlas 프레임 이름 | 방향 1개: `<action>_<index>`, 2개 이상: `<action>_<direction>_<index>`. 0부터 | `walk_5`, `walk_up_5` |
 
 attempt 번호는 `os.mkdir`의 원자성으로 할당한다. 가장 큰 기존 번호 + 1로 만들기를 시도하고, 이미 있으면(동시 생성) 다음 번호로 재시도한다.
 
@@ -115,7 +121,10 @@ JSON Schema 파일은 `sprite-animation-forge/schemas/`에 둔다. 모든 파일
 | `character` | string | ✓ | character_id |
 | `asset_type` | enum | ✓ | player, npc, character, creature, enemy |
 | `view` | enum | ✓ | side, topdown, 3/4, front, rear |
-| `facing` | enum | ✓ | right, down, down-right, camera, away |
+| `facing` | enum | ✓ | right, left, up, down, down-right, camera, away. 방향이 여러 개면 대표 방향 |
+| `directions` | enum[] | ✓ | right, left, up, down. side 기본 `[right]`, topdown 기본 `[down, up, right, left]`. [02](02-skill-spec.md) §8.1 |
+| `mirror` | map | | `{ "left": "right" }`만 허용. 생략·`{}`이면 mirror 없음 |
+| `actions.*.directions` | enum[] | | plan `directions`의 부분집합. 해당 액션만 방향을 줄임 |
 | `art_style` | enum | ✓ | auto, pixel_art, retro_pixel, pixel_inspired, clean_hd, project_native |
 | `cell` | `{w, h}` | ✓ | 출력 cell. 기본 128×128 |
 | `margin` | `{top, side, bottom}` | ✓ | 기본 8, 8, 10 |
@@ -185,6 +194,8 @@ Codex `--output-schema`에 넘기는 `character-profile.llm.schema.json`은 `ide
 [06](06-qc-and-recovery.md) §4 참고.
 
 ### 5.7 `manifest.json`
+
+방향이 2개 이상인 plan에서는 `actions`의 키가 unit 경로(`walk/up`)가 된다. mirror 파생 unit(`walk/left`)은 `attempts` 대신 `"mirror_of": "walk/right"`를 가진다. mirror를 끄면 파생본은 `attempts.001`(`provider: "mirror"`)로 바뀌고 `mirror_of`는 제거된다([02](02-skill-spec.md) §8.1). 아래 예시는 방향 1개 plan이다.
 
 ```json
 {

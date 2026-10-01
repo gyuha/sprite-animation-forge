@@ -49,6 +49,7 @@
 | `pinkish_character` | 캐릭터에 (230, 90, 200) 포함 (키 색 충돌 규칙) |
 | `native_alpha` | 진짜 투명 배경 RGBA |
 | `wide_attack` | 칼을 앞으로 길게 뻗음 (fit vs preserve 비교) |
+| `asymmetric_right` | 오른쪽 옆모습(무기를 한쪽에만 듦). 좌우반전 파생 결과가 정확히 가로 반전이고 baseline·발 위치가 유지되는지 확인 |
 
 ### 3.2 실제 Codex 샘플 (golden, 로컬 전용)
 
@@ -139,6 +140,7 @@ PRD §32 시나리오를 자동 테스트로 옮긴다. 가짜 codex 버전은 �
 | 2. walk 6프레임 | 시나리오 1 후 walk | QC-01 pass, QC-02 ≤ 0.10, QC-03 ≤ 3px. live에서는 사람이 정체성 유지를 확인(Web UI idle 겹쳐 보기) |
 | 3. Hero bundle | idle·walk·run·attack 생성 후 `export --engine phaser` | `atlas/hero.png`·`hero.json`·`animations.json` 존재, Phaser 스모크 통과(§6) |
 | 4. 긴 칼 attack | `wide_attack` 합성 시트(가짜) / live는 "oversized greatsword" 추가 지시 | preserve 적용 시 QC-07 ≥ 0.85. 같은 입력을 fit으로 처리하면 QC-07이 더 낮게 나옴(대조군) |
+| 6. 탑다운 4방향 (PRD 외 추가) | `init --view topdown → plan --actions idle,walk → down·up·right 각각 generate/process/accept → export` | `left`는 Codex 호출 없이 `right`의 정확한 가로 반전(픽셀 단위 일치). atlas에 `walk_down/up/right/left_*` 프레임 전부 존재. `animations.json` 키 8개(idle·walk × 4방향). Phaser 스모크에서 `walk_left`를 포함한 전 애니메이션 재생. 방향 간 `body_height` 차이 ≤ 10% |
 | 5. QC 실패 복구 | `edge_touch`·`scale_drift_12`·`wide_attack(fit)` 시트 | 각각 권장 조치 1순위가 재생성 `edge_touch` / 재생성 `scale_drift` / 재처리 `use_preserve`. Skill 모드 CLI 흐름에서 예산 내 복구 또는 강제 채택 기록 |
 
 ---

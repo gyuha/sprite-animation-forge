@@ -70,6 +70,26 @@ Do not redesign, add, or remove any part of the character.
 | `front` | camera | `Front view, character facing the viewer.` |
 | `rear` | away | `Rear view, character facing away from the viewer.` |
 
+**방향이 여러 개인 plan**(탑다운 4방향, [02](02-skill-spec.md) §8.1)에서는 위 표의 view 문구 대신 unit의 방향에 맞는 문구를 CAMERA에 쓴다. view가 `topdown`일 때의 카메라 문구는 그대로 두고 facing 문장만 바뀐다.
+
+| direction | facing 문장 |
+|---|---|
+| `down` | `character facing down toward the viewer. The front of the body, face and chest are visible.` |
+| `up` | `character facing up, away from the viewer. Only the back of the head, back, and rear of the clothing are visible; the face is not visible.` |
+| `right` | `character facing right, profile. Only the right side of the body is visible.` |
+| `left` (`mirror={}`일 때만) | `character facing left, profile. Only the left side of the body is visible.` |
+
+대표 방향이 아닌 unit에는 CAMERA 바로 뒤에 `DIRECTION REFERENCE` 블록을 넣고, 대표 방향 sheet를 추가 reference로 첨부한다.
+
+```text
+DIRECTION REFERENCE
+- The second attached image shows the same character from another direction.
+- Keep the identical proportions, clothing, colors, equipment, and art style.
+- Redraw only what the new facing direction reveals (for example the back of the cloak or the side profile). Do not redesign the character.
+```
+
+모션 라이브러리(§4)의 "front/back leg", "toward the front"는 화면 좌우가 아니라 **캐릭터가 향한 방향 기준**이다. 이를 ACTION 블록 첫머리에서 한 줄(`Describe all motion relative to the direction the character is facing.`)로 명시한다. `up`/`down`에서는 보행 시 다리가 화면의 위아래로 교차하는 형태가 되며, 이는 모델이 해석한다.
+
 ### 3.5 ACTION
 
 모션 라이브러리(§4)의 문구를 넣는다. 모든 body 액션에 `Animate in place: the character does not travel across the cell.`를 붙인다. 게임에서 이동은 코드가 담당하기 때문이다.
@@ -106,7 +126,7 @@ ADDITIONAL DIRECTION
 CONSISTENCY RULES
 - Identical character scale and camera distance in every cell.
 - The soles of the feet sit on the same horizontal baseline in every cell of a row.
-- Same facing direction ({facing}) in every cell.
+- Same facing direction ({facing}) in every cell. (`{facing}`는 unit의 방향: 방향이 여러 개인 plan에서는 `down`/`up`/`right`/`left`)
 - Full body visible in every cell. Nothing cropped.
 ```
 

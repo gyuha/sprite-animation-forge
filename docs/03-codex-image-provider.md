@@ -318,6 +318,7 @@ Colors must be hex codes sampled from the image. Do not generate images. Do not 
 | 배경 | 투명 영역을 키 색으로 합성해 불투명 RGB로 저장 | 투명 PNG가 모델 입력에서 어떻게 평탄화되는지 불확실. 출력 배경 규칙과 일치시킴 |
 | 위치 | attempt 디렉터리에 `ref-01.png`로 복사 후 첨부 | sandbox 범위 안, 해시 기록 |
 | 추가 reference | 채택된 idle 첫 프레임을 2번째로 첨부하는 방안 | 스케일 일관성 개선 가설. 스파이크 S-8로 효과 확인 후 결정 |
+| 방향 reference | 대표 방향이 아닌 unit(탑다운 `up`/`right`)에는 대표 방향 sheet를 `ref-02.png`로 추가 첨부 | 뒷면·옆면 정체성 유지([02](02-skill-spec.md) §8.1). 스파이크 S-10으로 확인 후 결정. 이 경우는 S-8 결과와 무관하게 필수로 시도 |
 
 ---
 
@@ -392,6 +393,7 @@ Codex CLI는 업데이트가 잦고, 이 어댑터는 공식 계약이 아닌 �
 | S-7 | 사용량 한도 도달 시 메시지·exit code | 실제 출력 | `usage_limited` 코드 추가 |
 | S-8 | reference 2장(canonical + 채택된 idle 프레임) 첨부가 스케일 일관성을 높이는가 | 동일 프롬프트로 QC-02·QC-07 수치 비교 | 개선되면 기본값으로 채택 |
 | S-9 | stdin(`-`)으로 지시문을 넘겼을 때 정상 동작하는가 | 생성 성공 | 실패 시 위치 인자로 전달 |
+| S-10 | 앞면 reference + 대표 방향 sheet 첨부로 뒷면(`up`)·옆면(`right`)이 같은 캐릭터로 그려지는가 | 육안 정체성 일치(의상·팔레트·장비), 스케일 QC-07 수치, 4회 중 성공 횟수 | 불일치가 크면 `DIRECTION REFERENCE` 문구 강화 또는 identity에 `back_details` 필드 추가. 성공률이 낮으면 방향당 후보 2개 생성 후 선택 UI 검토 |
 
 ---
 

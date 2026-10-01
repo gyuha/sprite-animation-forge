@@ -73,7 +73,9 @@ PRD §26 파라미터마다 기본값과 추론 규칙을 정한다. 사용자�
 |---|---|---|
 | `asset_type` | `character` | player/hero/주인공/플레이어 → `player`, enemy/적/몬스터/보스 → `enemy`, npc/상인/주민 → `npc`, 비인간형 생물 → `creature` |
 | `view` | `side` | 횡스크롤/side-scroll/platformer → `side`, 탑다운/top-down/필드 RPG → `topdown`, 쿼터뷰/isometric/3/4 → `3/4`, 정면 → `front`, 뒷모습 → `rear` |
-| `facing` (신규) | view별 | side → `right`, topdown → `down`, 3/4 → `down-right`, front → `camera`, rear → `away` |
+| `facing` (신규) | view별 | side → `right`, topdown → `down`, 3/4 → `down-right`, front → `camera`, rear → `away`. 방향이 여러 개인 plan에서는 reference·identity의 기준이 되는 **대표 방향**이다 |
+| `directions` (신규) | view별 | side → `[right]`, **topdown → `[down, up, right, left]`**, 그 외 → `[facing]`. 앞면=`down`, 뒷면=`up`. §8.1 |
+| `mirror` (신규) | topdown이면 `{left: right}` | `left`를 `right`의 좌우반전으로 만든다. `{}`이면 `left`도 Codex로 생성. §8.1 |
 | `frames` | 프리셋(§5) | "N프레임" 명시 시 그 값. 범위 2–16 |
 | `grid` | `auto` | §5.2 grid 자동 계산 |
 | `anchor` | 액션별(§6) | body 액션 → `feet`(death는 `bottom`), FX/projectile → `center` |
@@ -155,8 +157,10 @@ PRD §10 표에 `fall`과 fps를 추가했다. fps는 PRD §9 예시(idle 6, wal
 |---|---|---|
 | `side-action` | "횡스크롤 액션 게임에서 쓸 수 있게" | idle, walk, run, jump, fall, attack, hurt, death |
 | `side-basic` | "기본 애니메이션", "게임용 애니메이션" | idle, walk, run, attack |
-| `topdown-rpg` | "탑다운 RPG용" | idle, walk, attack, hurt, death |
+| `topdown-rpg` | "탑다운 RPG용" | idle, walk, attack, hurt, death (**4방향**: down·up·right·left, §8.1) |
 | `npc` | "NPC", "상인" | idle, walk |
+
+`topdown-rpg`는 view가 `topdown`이므로 방향 4개가 자동으로 붙는다. 액션 5개 × 생성 방향 3개(left는 반전) = Codex 호출 15회, 약 22분 30초다. 시간을 줄이려면 방향이 필요 없는 액션(예: death)에 `directions` override를 준다.
 
 ---
 
@@ -191,6 +195,90 @@ PRD §10 표에 `fall`과 fps를 추가했다. fps는 PRD §9 예시(idle 6, wal
 ```
 
 `key_color`는 profile 팔레트와 충돌하면 plan 생성 시 `#00FF00`으로 바뀐다([05](05-sprite-pipeline.md) §3.4).
+
+### 8.1 방향(Direction) — 탑다운 4방향
+
+탑다운 게임은 캐릭터가 앞면(아래), 뒷면(위), 좌·우 옆면을 모두 보여야 한다. 횡스크롤(`side`)은 방향이 `right` 하나이고 왼쪽은 엔진의 `setFlipX`가 처리하므로, 방향 축은 **plan의 `directions`가 2개 이상일 때만** 저장 구조·이름·UI에 나타난다. 방향이 1개인 plan은 이 절 이전과 동일하게 동작한다.
+
+**방향 정의**
+
+| 방향 | 의미 | 프롬프트 facing | 생성 방식 |
+|---|---|---|---|
+| `down` | 앞면(카메라 쪽) | down toward the viewer | Codex |
+| `up` | 뒷면(카메라 반대쪽) | up, away from the viewer | Codex |
+| `right` | 우측면 | right (profile) | Codex |
+| `left` | 좌측면 | left (profile) | **`right` 좌우반전**(기본). `mirror={}`이면 Codex |
+
+생성 단위(unit)는 **(액션, 방향)** 이다. 기본 topdown 액션 1개는 Codex 호출 3회(down, up, right)이고 `left`는 호출 없이 파생된다.
+
+**Plan 필드**
+
+```json
+{
+  "view": "topdown",
+  "facing": "down",
+  "directions": ["down", "up", "right", "left"],
+  "mirror": { "left": "right" },
+  "actions": {
+    "idle":  { "frames": 4, "grid": "2x2", "loop": true,  "fps": 6,  "anchor": "feet", "scale_strategy": "fit", "x_anchor": "mass", "components": "largest" },
+    "death": { "frames": 8, "grid": "2x4", "loop": false, "fps": 10, "anchor": "bottom", "scale_strategy": "preserve", "x_anchor": "feet", "components": "largest", "directions": ["down"] }
+  }
+}
+```
+
+- `actions.*.directions`(선택): 해당 액션만 방향을 줄인다. plan의 `directions`의 부분집합이어야 한다. 위 예의 `death`는 `down`만 만든다.
+- `mirror`는 `left ← right`만 허용한다(다른 쌍은 오류). `mirror.left`가 있으면 `right`가 그 액션의 `directions`에 있어야 한다.
+- `facing`은 대표 방향이다. reference 이미지와 identity 분석은 이 방향 기준이다. 사용자가 올린 이미지가 뒷면·옆면이면 `facing`을 그에 맞게 지정한다(이미지만 보고 추정하지 않는다).
+
+**좌우반전 파생**
+
+`right`를 `accept`하면 같은 액션의 `left`가 자동으로 만들어진다. `frames/NNN.png`를 cell 중심 기준으로 가로 반전하고, 반전 출처를 `left/mirror.json`(`{source: "right", attempt: "001"}`)에 남긴다. 정렬이 이미 cell 중심에 맞춰져 있으므로 발 위치와 baseline이 유지된다. `right`를 다시 채택하면 `left`도 다시 만든다. 별도 attempt, QC, Codex 호출이 없고 QC 결과는 `right`의 것을 그대로 쓴다.
+
+**mirror는 캐릭터별 선택 옵션이다.** 캐릭터마다 좌우가 다를 수 있다(무기를 한 손에만 들거나 한쪽 어깨 장식·비대칭 의상이 있으면 반전 시 오른손잡이가 왼손잡이로 바뀐다). 그래서 plan 생성 시점과 이후 언제든 선택할 수 있다.
+
+| 선택 | plan 값 | `left` 처리 |
+|---|---|---|
+| 우측면 반전 (기본) | `mirror: {"left": "right"}` | Codex 호출 없이 파생 |
+| 좌측면 별도 생성 | `mirror: {}` | 다른 방향과 같은 unit. 생성·QC·재처리·채택 |
+
+- 설정 위치: CLI `plan --no-mirror`(또는 `--mirror`), S4 화면의 "좌측면: 우측면 반전" 스위치
+- 기본값을 켜짐으로 둔 이유는 호출 수를 25% 줄이고 좌우 일관성을 보장하기 위해서다. reference/identity의 `weapon`·`clothing`·`accessories`에 좌우를 가르는 단어(`left`, `right`, `one-sided` 등)가 있으면 plan 생성 시 "비대칭일 수 있습니다. 좌측면을 별도 생성할까요?" 경고를 `assumptions`에 남기고 UI에서 스위치 옆에 표시한다. 경고만 하고 자동으로 끄지는 않는다
+- **중간에 바꾸기**
+  - 반전 → 별도 생성: 이미 파생된 `left`는 지우지 않고 `left`의 attempt `001`(`provider: "mirror"`)로 등록하며, 채택 상태도 유지한다. 이후 새로 생성하면 `002`부터다. 반전 결과가 마음에 들면 그대로 쓰고 필요한 액션만 다시 생성할 수 있다
+  - 별도 생성 → 반전: 채택된 `left`가 `right` 반전본으로 바뀐다. 기존 `left`의 attempts는 그대로 보존하고 최상위 채택본만 교체한다("아무것도 잃지 않는다" 원칙). 확인 대화상자를 거친다
+- 옵션은 plan 전체에 적용되며 액션별 예외는 두지 않는다. 일부 액션만 `left`가 필요 없으면 `actions.*.directions`에서 `left`를 뺀다
+
+**생성 순서와 일관성**
+
+뒷면·옆면은 reference에 보이지 않는 부분을 모델이 그려야 하므로 방향 간 외형이 어긋나기 쉽다. 이를 줄이기 위해 다음 순서와 첨부 규칙을 쓴다.
+
+1. 첫 body 액션의 **대표 방향**(보통 `idle/down`)을 먼저 생성·채택한다. `character-scale-profile.json`은 이것으로 만든다.
+2. 나머지 방향은 대표 방향 sheet(또는 채택된 idle 대표 방향 프레임)를 reference로 추가 첨부한다([03](03-codex-image-provider.md) §9, 스파이크 S-8·S-10). 프롬프트에는 `DIRECTION REFERENCE` 문구가 붙는다([04](04-prompt-rules.md) §3.4).
+3. 같은 액션 안에서는 `down → right → up` 순서, 액션 간에는 plan의 `order`를 따른다. 일괄 생성은 이 순서로 unit을 나열한다.
+4. scale profile은 방향과 무관하게 하나다. 모든 방향이 같은 `body_height`·`norm_scale`을 기준으로 QC-02·QC-07을 검사한다. `body_width`는 방향마다 다르므로 비교 기준에서 제외한다([06](06-qc-and-recovery.md) §5).
+
+```mermaid
+flowchart TD
+    A["idle / down 생성·채택<br/>(대표 방향)"]:::ai --> S["scale profile 생성"]:::code
+    S --> R["idle / right 생성<br/>+ idle/down 추가 첨부"]:::ai
+    S --> U["idle / up 생성<br/>+ idle/down 추가 첨부"]:::ai
+    R --> RA["right 채택"]:::ok
+    RA --> L["left 자동 파생<br/>(좌우반전, Codex 호출 없음)"]:::code
+    U --> UA["up 채택"]:::ok
+    L --> N["다음 액션의 동일 순서 반복"]:::ui
+    UA --> N
+
+    classDef ai fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+    classDef code fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef ok fill:#bbf7d0,stroke:#15803d,color:#14532d
+    classDef ui fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+```
+
+**CLI 영향**
+
+- `plan`: `--directions down,up,right,left`, `--no-mirror`(left를 별도 생성), `--set <action>.directions=down`
+- `prompt`, `generate`, `import-raw`, `process`, `accept`: `--direction <down|up|right|left>`. plan의 `directions`가 2개 이상이면 필수, 1개면 생략. `left`가 반전 파생이면 이 명령들에 `--direction left`를 주는 것은 오류(`mirrored_direction`)다
+- `status`: unit(`walk/up`)별 상태를 보여준다
 
 ---
 

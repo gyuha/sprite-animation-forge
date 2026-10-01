@@ -149,6 +149,7 @@ export 시 루트에 액션별 결과를 모은다(PRD §39).
 
 - `body_height`, `body_width`: 기준 액션 출력 프레임 bbox의 중앙값
 - `norm_scale = s × RH` (기준 액션의 배율 × raw cell 높이). preserve 배율 계산에 쓴다([05](05-sprite-pipeline.md) §7.2)
+- 방향이 여러 개인 plan([02](02-skill-spec.md) §8.1)에서도 profile은 **하나**다. 기준 unit은 첫 body 액션의 대표 방향(`idle/down`)이고, 모든 방향의 QC-02·QC-07이 같은 `body_height`·`norm_scale`을 쓴다. `body_width`는 방향마다 다르므로(옆모습이 더 좁다) 방향 간 비교에 쓰지 않는다
 - 기준 액션을 다시 채택하면 profile이 갱신된다. 이미 채택된 다른 액션의 QC는 **다시 계산해 표시**하지만 자동으로 재처리하지는 않는다
 
 ---
