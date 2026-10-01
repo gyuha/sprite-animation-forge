@@ -4,5 +4,5 @@ status: done
 executed: 2026-10-01
 completed: 2026-10-01
 verified: yes (-k export/atlas/phaser/gif → 36 passed; 전체 580 passed 4 skipped)
-retro: skipped (fg-loop 자동 구동 — 학습은 run.md에 남기고 승격은 이후 fg-learn으로 미룸)
+retro: .forge/branch/feature/261001-init/retro/261001-220356-forge-m3-export.md (batch promotion 2026-10-01)
 docs updated: none
