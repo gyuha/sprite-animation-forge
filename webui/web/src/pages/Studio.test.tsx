@@ -118,8 +118,12 @@ describe('Studio shortcuts', () => {
     expect(player).toHaveAttribute('data-playing', 'true')
     await userEvent.keyboard(' ')
     await waitFor(() => expect(player).toHaveAttribute('data-playing', 'false'))
+    // the rAF clock may already have advanced before the pause under load, so step relative to the paused frame
+    const paused = Number(player.getAttribute('data-frame'))
+    const count = Number(player.getAttribute('data-frame-count'))
+    const stepped = String((paused + 1) % count)
     await userEvent.keyboard('{ArrowRight}')
-    await waitFor(() => expect(player).toHaveAttribute('data-frame', '1'))
+    await waitFor(() => expect(player).toHaveAttribute('data-frame', stepped))
 
     await userEvent.click(screen.getByTestId('extra-input'))
     await userEvent.keyboard(' g a o{ArrowLeft}')
@@ -127,7 +131,7 @@ describe('Studio shortcuts', () => {
     await waitFor(() => expect(screen.getByTestId('extra-count')).toHaveTextContent('6 / 500'))
     await new Promise((r) => setTimeout(r, 50)) // let the rAF player settle before asserting that nothing happened
     expect(player).toHaveAttribute('data-playing', 'false') // space typed in the textarea did not toggle
-    expect(player).toHaveAttribute('data-frame', '1') // nor did the arrow key
+    expect(player).toHaveAttribute('data-frame', stepped) // nor did the arrow key
     expect(player).toHaveAttribute('data-overlays', '') // 'o' did not toggle onion
     expect(calls(fetchMock, 'POST')).toEqual([]) // 'g' did not start a generation, 'a' did not accept
   })
