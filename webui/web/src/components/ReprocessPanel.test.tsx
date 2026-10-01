@@ -30,7 +30,7 @@ describe('ReprocessPanel', () => {
     act(() => { vi.advanceTimersByTime(1) })
     expect(onApply).toHaveBeenCalledTimes(1)
     expect(onApply).toHaveBeenCalledWith({
-      anchor: 'feet', x_anchor: 'mass', scale_strategy: 'fit', components: 'largest', merge_gap_px: 15,
+      align: 'register', anchor: 'feet', x_anchor: 'mass', scale_strategy: 'fit', components: 'largest', merge_gap_px: 15,
       t_in: 30, t_out: 90, despill: true, edge_band_px: 2, margin_top: 8, margin_side: 8, margin_bottom: 10,
     })
   })
@@ -58,5 +58,22 @@ describe('ReprocessPanel', () => {
     expect(screen.getByTestId('reprocess-despill')).toBeDisabled()
     expect(screen.getByTestId('reprocess-anchor')).toBeDisabled()
     expect(within(screen.getByTestId('reprocess-t_in')).getByRole('slider')).toHaveAttribute('data-disabled')
+  })
+
+  it('offers the alignment mode: shared placement is the default, per-frame is the previous behaviour', () => {
+    const onApply = vi.fn()
+    render(<ReprocessPanel initial={initial} planDefaults={planDefaults} onApply={onApply} onSaveDefaults={vi.fn()} defaultOpen />)
+    expect(screen.getByTestId('reprocess-align')).toHaveTextContent('공통 배치')
+    expect(screen.getByTestId('reprocess-align').closest('[data-changed]')).toHaveAttribute('data-changed', 'false')
+  })
+
+  it('marks align as changed and sends it with every parameter when the previous mode is chosen', () => {
+    const onApply = vi.fn()
+    render(<ReprocessPanel initial={{ ...initial, align: 'per_frame' }} planDefaults={planDefaults} onApply={onApply} onSaveDefaults={vi.fn()} defaultOpen />)
+    expect(screen.getByTestId('reprocess-align')).toHaveTextContent('프레임별')
+    expect(screen.getByTestId('reprocess-align').closest('[data-changed]')).toHaveAttribute('data-changed', 'true')
+    press('merge_gap_px', 'ArrowRight')
+    act(() => { vi.advanceTimersByTime(REPROCESS_DEBOUNCE_MS) })
+    expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ align: 'per_frame' }))
   })
 })

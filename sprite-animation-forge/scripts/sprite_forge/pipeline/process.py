@@ -57,11 +57,13 @@ from .align import blank_frame, compose_sheet, place_frame
 from .chroma import KEY_MAGENTA, remove_background, validate_input
 from .components import DEFAULT_MIN_AREA_PX, default_merge_gap_px, filter_components
 from .measure import Layout, measure_frame
+from .register import estimate_displacements, plan_anchors, upper_body
 from .scale import ScaleProfile, choose_scale, overflow_px
-from .split import crop, select_cells, split_grid
+from .split import crop, ideal_boundaries, select_cells, split_grid
 
 PIPELINE_VERSION = "sprite_forge@0.1.0"
 PIXEL_ART_STYLES = ("pixel_art", "retro_pixel")
+ALIGN_MODES = ("register", "per_frame")
 
 
 @dataclass
@@ -86,6 +88,8 @@ class ProcessParams:
     x_anchor: str = "mass"
     scale_strategy: str = "fit"
     art_style: str = "clean_hd"
+    align: str = "register"
+    preserve_vertical: bool = False  # airborne actions (jump/fall): keep the raw vertical travel under align=register
 
     @property
     def layout(self) -> Layout:
@@ -134,6 +138,8 @@ def process_sheet(
     layout = p.layout
     if not 1 <= p.frames <= p.rows * p.cols:
         raise PipelineError("invalid_params", f"frames={p.frames} does not fit a {p.rows}x{p.cols} grid")
+    if p.align not in ALIGN_MODES:
+        raise PipelineError("invalid_params", f"align={p.align!r}; choose from {ALIGN_MODES}")
 
     raw_bytes = raw_path.read_bytes()
     arr = validate_input(raw_path, p.rows, p.cols)
@@ -154,11 +160,24 @@ def process_sheet(
         comps.append(res)
         measures.append(measure_frame(res.rgba))
 
-    choice = choose_scale(p.scale_strategy, measures, layout, p.anchor, p.x_anchor, profile, raw_cell_h)
+    # align=register shares one placement per action (feet anchor only); other anchors stay per-frame
+    use_register = p.align == "register" and p.anchor == "feet"
+    anchors: list = [None] * len(cells)
+    if use_register:
+        heights = [m.h for m in measures if m is not None]
+        h_ref = float(np.median(heights)) if heights else None
+        bodies = [None if m is None else upper_body(rgba, m, h_ref) for rgba, m in zip(filtered, measures)]
+        nom_x, nom_y = ideal_boundaries(p.cols, width), ideal_boundaries(p.rows, height)
+        shifts = [(c.rect[0] - nom_x[c.col], c.rect[1] - nom_y[c.row]) for c in cells]
+        raw_w, raw_h = max(f.shape[1] for f in filtered), max(f.shape[0] for f in filtered)
+        disp = estimate_displacements(bodies, raw_w, raw_h)
+        anchors = plan_anchors(bodies, measures, disp, p.preserve_vertical, shifts)
+
+    choice = choose_scale(p.scale_strategy, measures, layout, p.anchor, p.x_anchor, profile, raw_cell_h, anchors if use_register else None)
 
     warnings = list(chroma.warnings) + list(choice.warnings)
     frames, records = [], []
-    for cell, rgba, m, comp in zip(cells, filtered, measures, comps):
+    for cell, rgba, m, comp, anc in zip(cells, filtered, measures, comps, anchors):
         x0, y0, x1, y1 = cell.rect
         rec = {
             "index": cell.index,
@@ -181,11 +200,11 @@ def process_sheet(
             warnings.append(f"empty_frame:{cell.index}")
             frames.append(blank_frame(layout))
         else:
-            placed = place_frame(rgba, m, choice.scale, layout, p.anchor, p.x_anchor, p.pixel_art)
-            over = overflow_px(m, choice.scale, layout, p.anchor, p.x_anchor)
+            placed = place_frame(rgba, m, choice.scale, layout, p.anchor, p.x_anchor, p.pixel_art, anc)
+            over = overflow_px(m, choice.scale, layout, p.anchor, p.x_anchor, anc)
             if any(over.values()):
                 warnings.append(f"overflow:{cell.index}")
-            ax, ay = m.anchor_point(p.anchor, p.x_anchor)
+            ax, ay = anc if anc is not None else m.anchor_point(p.anchor, p.x_anchor)
             rec.update(
                 bbox=[m.bbox[0] + x0, m.bbox[1] + y0, m.bbox[2] + x0, m.bbox[3] + y0],
                 feet_y=m.feet_y + y0,
@@ -230,6 +249,8 @@ def process_sheet(
             "x_anchor": p.x_anchor,
             "scale_strategy": p.scale_strategy,
             "art_style": p.art_style,
+            "align": "register" if use_register else "per_frame",  # effective mode (non-feet anchors fall back)
+            "align_vertical": "preserve" if (use_register and p.preserve_vertical) else "normalize",
             "resample": "box" if p.pixel_art else "lanczos",
         },
         "derived": {

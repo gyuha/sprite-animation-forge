@@ -1,4 +1,4 @@
-# template_version: action_prompt@1
+# template_version: action_prompt@2
 Create a 2x3 sprite animation grid of a 2D game character: walk cycle, 6 frames.
 
 REFERENCE IDENTITY

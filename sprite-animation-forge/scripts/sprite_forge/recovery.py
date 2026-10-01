@@ -22,7 +22,7 @@ Recommendation (one JSON object)::
      "reason": str, "qc_id": "QC-xx", "priority": int (1 = do first), "cost": "~2s"|"~90s"|"0s"}
 
 ``code``: regenerate -> a docs/04 section 6 recovery code (``prompt.RECOVERY_CODES``); reprocess ->
-``use_preserve`` | ``use_fit`` | ``anchor_bottom`` | ``tighter_merge``; force_accept -> ``forced_accept``.
+``use_preserve`` | ``use_fit`` | ``align_per_frame`` | ``anchor_bottom`` | ``tighter_merge``; force_accept -> ``forced_accept``.
 
 Notes on ambiguous spots
 ------------------------
@@ -99,6 +99,8 @@ def _candidates(report: dict, data: dict, params) -> list[dict]:
     if failed("QC-02"):
         out.append(_regen("scale_drift", "character size changes between frames; reprocessing keeps the ratio", "QC-02"))
     if failed("QC-03"):
+        if data.get("params", {}).get("align") == "register":
+            out.append(_reproc("align_per_frame", {"align": "per_frame"}, "pin every frame's feet to the baseline instead of sharing one placement", "QC-03"))
         out.append(_reproc("anchor_bottom", {"anchor": "bottom"}, "feet line caught on a cape/weapon tip", "QC-03"))
         gap = getattr(params, "merge_gap_px", None) or data.get("params", {}).get("components", {}).get("merge_gap_px")
         set_ = {"components": "largest"}

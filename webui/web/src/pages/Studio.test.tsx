@@ -176,7 +176,7 @@ describe('Studio actions', () => {
     await waitFor(() => expect(player.getAttribute('data-version')).not.toBe(before))
     expect(player.getAttribute('data-version')).toContain('b0') // preview now uses the new file hashes, from the response alone
     expect(lastBody(fetchMock, 'POST', '/api/characters/hero/actions/idle/attempts/001/process')).toEqual({
-      set: { anchor: 'feet', x_anchor: 'mass', scale_strategy: 'preserve', components: 'largest', merge_gap_px: 13, t_in: 30, t_out: 90, despill: true, edge_band_px: 2, margin_top: 8, margin_side: 8, margin_bottom: 10 },
+      set: { align: 'register', anchor: 'feet', x_anchor: 'mass', scale_strategy: 'preserve', components: 'largest', merge_gap_px: 13, t_in: 30, t_out: 90, despill: true, edge_band_px: 2, margin_top: 8, margin_side: 8, margin_bottom: 10 },
     })
     expect(screen.getByTestId('qc-status')).toHaveAttribute('data-status', 'warn')
     expect(calls(fetchMock, 'GET').filter((u) => u.endsWith('/attempts/001'))).toHaveLength(1) // no refetch needed

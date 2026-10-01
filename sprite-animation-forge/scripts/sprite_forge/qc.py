@@ -39,7 +39,7 @@ Notes on ambiguous spots
 * QC-05: process.json stores no foreground area. Area is estimated from the output frame:
   ``sum(alpha / 255) / scale**2 / raw_cell_area`` (resampling preserves area); empty cells are 0.
 * QC-03/QC-04/QC-07 measure the output frames with ``measure_frame`` (empty frames skipped).
-  QC-03's B is ``derived.baseline_y``. QC-04 uses ``feet_cx`` when x_anchor=mass, else ``mass_cx``.
+  QC-03's B is ``derived.baseline_y``; under align=register QC-03 means foot-contact slip (see ``qc03``). QC-04 uses ``feet_cx`` when x_anchor=mass, else ``mass_cx``.
 * QC-02 uses the raw bbox heights from process.json (empty frames skipped).
 * QC-06 skips pairs that involve an empty frame (already QC-05). ``loop`` defaults to the docs/02
   table (idle, walk, run, fall loop); a loop adds the last -> first pair when frames >= 3.
@@ -167,7 +167,19 @@ def qc02(records, mode: str) -> dict:
             "limit": {"warn": QC02_WARN, "fail": QC02_FAIL}}
 
 
-def qc03(measures, baseline: float) -> dict:
+def qc03(measures, baseline: float, align: str = "per_frame", vertical: str = "normalize") -> dict:
+    """Anchor drift. per_frame: max |feet_strict - baseline| (every frame is pinned to the baseline, so a deviation
+    is an estimator disagreement). register: foot-contact slip - the spread of the strict feet line over the
+    lower half of the frames (the ones on the ground), because the shared placement keeps the model's own
+    grounding. A register jump/fall (vertical travel preserved) has no ground line to judge: skipped."""
+    if align == "register" and vertical == "preserve":
+        return _skipped("QC-03", "vertical_preserved")
+    if align == "register":
+        feet = sorted((m.feet_y_strict for m in measures if m), reverse=True)
+        contact = feet[: (len(feet) + 1) // 2]
+        value = float(max(contact) - min(contact)) if contact else 0.0
+        return {"id": "QC-03", "grade": _grade_high(value, QC03_WARN, QC03_FAIL), "value": _r(value),
+                "limit": {"warn": QC03_WARN, "fail": QC03_FAIL}, "mode": "contact_slip"}
     value = max((abs(m.feet_y_strict - baseline) for m in measures if m), default=0.0)
     return {"id": "QC-03", "grade": _grade_high(value, QC03_WARN, QC03_FAIL), "value": _r(value),
             "limit": {"warn": QC03_WARN, "fail": QC03_FAIL}}
@@ -279,7 +291,7 @@ def run_qc(process_result_or_data, frames=None, action="walk", params=None, prof
     results = [
         item("QC-01", lambda _: qc01(records, frames)),
         item("QC-02", lambda mode: qc02(records, mode)),
-        item("QC-03", lambda _: qc03(measures, derived["baseline_y"])),
+        item("QC-03", lambda _: qc03(measures, derived["baseline_y"], data["params"].get("align", "per_frame"), data["params"].get("align_vertical", "normalize"))),
         item("QC-04", lambda mode: qc04(xs, cell_w, mode)),
         item("QC-05", lambda _: qc05(records, frames, derived["scale"])),
         item("QC-06", lambda mode: qc06(records, hashes, loop, mode)),

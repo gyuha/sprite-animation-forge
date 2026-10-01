@@ -326,6 +326,12 @@ def resolve_unit(plan: dict, action: str, direction: str | None) -> tuple[str, s
     return f"{action}/{direction}", direction, False
 
 
+def is_airborne(act: dict, action: str) -> bool:
+    """jump/fall (QC profile airborne): the raw vertical travel is part of the animation."""
+    from .qc import PROFILE_BY_ACTION  # local import: qc imports the pipeline, plan must stay light
+    return (act.get("qc_profile") or PROFILE_BY_ACTION.get(action)) == "airborne"
+
+
 def process_params(plan: dict, action: str) -> ProcessParams:
     act = plan["actions"][action]
     rows, cols = (int(x) for x in act["grid"].split("x"))
@@ -337,6 +343,7 @@ def process_params(plan: dict, action: str) -> ProcessParams:
         key_color=_hex_to_rgb(plan["key_color"]),
         components=act["components"], anchor=act["anchor"], x_anchor=act["x_anchor"],
         scale_strategy=act["scale_strategy"], art_style=plan["art_style"],
+        preserve_vertical=is_airborne(act, action),
     )
 
 

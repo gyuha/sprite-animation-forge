@@ -426,8 +426,26 @@ def test_qc_integration_empty_cell_fails_qc05(tmp_path):
 
 def test_qc_integration_baseline_jitter_passes_qc03(tmp_path):
     # alignment removes the +-15 px jitter, so the independent strict-feet check passes
-    rep = qc.run_qc(process(tmp_path, "baseline_jitter"), action="walk")
+    rep = qc.run_qc(process(tmp_path, "baseline_jitter", align="per_frame"), action="walk")
     assert grade(rep, "QC-03") == "pass" and rep["checks"]["anchor_variance"] <= 2
+
+
+def test_qc_integration_register_flags_foot_contact_slip(tmp_path):
+    # align=register keeps the model's own grounding, so a +-15 px baseline jitter is reported (not hidden)
+    rep = qc.run_qc(process(tmp_path, "baseline_jitter"), action="walk")
+    item = next(r for r in rep["results"] if r["id"] == "QC-03")
+    assert item["mode"] == "contact_slip" and item["grade"] == "fail" and item["value"] > 3
+
+
+def test_qc_integration_register_clean_has_no_contact_slip(tmp_path):
+    rep = qc.run_qc(process(tmp_path, "clean"), action="walk")
+    assert grade(rep, "QC-03") == "pass"
+
+
+def test_qc_register_airborne_vertical_travel_skips_qc03(tmp_path):
+    res = process(tmp_path, "baseline_jitter", preserve_vertical=True)
+    item = next(r for r in qc.run_qc(res, action="jump")["results"] if r["id"] == "QC-03")
+    assert item["grade"] == "skipped" and item["reason"] == "vertical_preserved"
 
 
 def test_qc_integration_qc07_with_profile(tmp_path):

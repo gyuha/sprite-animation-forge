@@ -1,4 +1,4 @@
-# template_version: action_prompt@1
+# template_version: action_prompt@2
 Create a 2x2 sprite animation grid of a 2D game character: idle breathing animation, 4 frames.
 
 REFERENCE IDENTITY

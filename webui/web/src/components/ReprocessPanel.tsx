@@ -12,11 +12,15 @@ import { cn } from '@/lib/utils'
 export const REPROCESS_DEBOUNCE_MS = 300
 
 const ENUM_LABELS: { key: keyof typeof ENUMS; label: string }[] = [
+  { key: 'align', label: '정렬 방식' },
   { key: 'anchor', label: '기준점' },
   { key: 'x_anchor', label: '가로 기준' },
   { key: 'scale_strategy', label: '크기 전략' },
   { key: 'components', label: '조각 처리' },
 ]
+
+/** Friendlier names for options whose raw value is not self-explanatory. */
+const ENUM_OPTION_LABELS: Record<string, string> = { register: '공통 배치 (기본)', per_frame: '프레임별 (이전 방식)' }
 
 interface Props {
   /** values of the attempt as last processed; remount (key) to load new ones */
@@ -46,7 +50,9 @@ export function ReprocessPanel({ initial, planDefaults, onApply, onSaveDefaults,
     clearTimeout(timer.current)
     timer.current = setTimeout(() => apply.current(valuesToSet(next)), REPROCESS_DEBOUNCE_MS)
   }
-  const differs = (k: (typeof PLAN_KEYS)[number]) => values[k] !== planDefaults[k]
+  // `align` is not stored per action in the plan: its default is always the shared-placement mode
+  const baseline: Record<keyof typeof ENUMS, string> = { align: 'register', ...planDefaults }
+  const differs = (k: keyof typeof ENUMS) => values[k] !== baseline[k]
 
   return (
     <Collapsible defaultOpen={defaultOpen} className="space-y-3" data-testid="reprocess-panel">
@@ -63,7 +69,7 @@ export function ReprocessPanel({ initial, planDefaults, onApply, onSaveDefaults,
             <Select value={values[key]} onValueChange={(v) => change({ [key]: v })} disabled={!!disabledReason}>
               <SelectTrigger className="w-full" data-testid={`reprocess-${key}`}><SelectValue /></SelectTrigger>
               <SelectContent>
-                {ENUMS[key].map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                {ENUMS[key].map((o) => <SelectItem key={o} value={o}>{ENUM_OPTION_LABELS[o] ?? o}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -82,7 +88,7 @@ export function ReprocessPanel({ initial, planDefaults, onApply, onSaveDefaults,
           <Switch id="reprocess-despill" checked={values.despill} disabled={!!disabledReason} onCheckedChange={(v) => change({ despill: v })} data-testid="reprocess-despill" />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" disabled={!!disabledReason || PLAN_KEYS.every((k) => !differs(k))} onClick={() => change({ ...planDefaults })} data-testid="reprocess-reset">
+          <Button variant="outline" size="sm" disabled={!!disabledReason || (Object.keys(baseline) as (keyof typeof ENUMS)[]).every((k) => !differs(k))} onClick={() => change({ ...baseline })} data-testid="reprocess-reset">
             기본값으로
           </Button>
           <Button variant="secondary" size="sm" disabled={!!disabledReason} onClick={() => onSaveDefaults(Object.fromEntries(PLAN_KEYS.map((k) => [k, values[k]])))} data-testid="reprocess-save">

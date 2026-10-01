@@ -208,6 +208,23 @@ def test_cli_process_set_override_and_invalid_set(forge, raw_sheet):
         assert (code, out["error_code"]) == (1, "invalid_override"), bad
 
 
+def test_cli_process_align_set_defaults_to_register_and_accepts_per_frame(forge, raw_sheet):
+    forge.ok("init", "hero")
+    forge.ok("plan", "hero", "--actions", "walk,jump")
+    forge.ok("import-raw", "hero", "walk", raw_sheet)
+    forge.ok("process", "hero", "walk")
+    pj = lambda n: json.loads((forge.root / f"hero/walk/attempts/{n}/process.json").read_text())["params"]  # noqa: E731
+    assert pj("001")["align"] == "register" and pj("001")["align_vertical"] == "normalize"
+    forge.ok("process", "hero", "walk", "--set", "align=per_frame")
+    assert pj("001")["align"] == "per_frame"
+    code, out = forge.run("process", "hero", "walk", "--set", "align=nope")
+    assert (code, out["error_code"]) == (1, "invalid_override")
+    forge.ok("import-raw", "hero", "jump", raw_sheet)
+    forge.ok("process", "hero", "jump")
+    jump = json.loads((forge.root / "hero/jump/attempts/001/process.json").read_text())["params"]
+    assert jump["align"] == "register" and jump["align_vertical"] == "preserve"  # airborne keeps its vertical travel
+
+
 def test_cli_process_is_deterministic(forge, raw_sheet):
     forge.ok("init", "hero")
     forge.ok("plan", "hero", "--actions", "walk")

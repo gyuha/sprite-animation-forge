@@ -198,7 +198,7 @@ def test_generate_happy_path_creates_attempt_files(forge, ref_png):
         assert (adir / name).exists(), name
     gen = json.loads((adir / "generation.json").read_text())
     assert gen["status"] == "succeeded" and gen["provider"] == "codex-cli"
-    assert gen["prompt_template_version"] == "action_prompt@1" and gen["prompt_file"] == "prompt.txt"
+    assert gen["prompt_template_version"] == "action_prompt@2" and gen["prompt_file"] == "prompt.txt"
     assert gen["prompt_sha256"] == sha(adir / "prompt.txt")
     assert [r["source"] for r in gen["references"]] == ["reference/character-keyed.png"]
     assert gen["references"][0]["sha256"] == sha(cd / "reference/character-keyed.png")

@@ -6,6 +6,7 @@ export type ProcessSet = Record<string, SetValue>
 type Params = Record<string, any>
 
 export interface ReprocessValues {
+  align: string
   anchor: string
   x_anchor: string
   scale_strategy: string
@@ -24,6 +25,7 @@ export interface ReprocessValues {
 export const PLAN_KEYS = ['anchor', 'x_anchor', 'scale_strategy', 'components'] as const
 
 export const ENUMS = {
+  align: ['register', 'per_frame'],
   anchor: ['feet', 'bottom', 'center'],
   x_anchor: ['mass', 'feet', 'bbox'],
   scale_strategy: ['fit', 'preserve'],
@@ -43,6 +45,7 @@ export const SLIDERS: { key: keyof ReprocessValues & string; label: string; min:
 /** Panel values from process.json `params` (the server records resolved values, e.g. merge_gap_px). */
 export function valuesFromParams(p: Params | null | undefined): ReprocessValues {
   return {
+    align: p?.align ?? 'register',
     anchor: p?.anchor ?? 'feet',
     x_anchor: p?.x_anchor ?? 'mass',
     scale_strategy: p?.scale_strategy ?? 'fit',

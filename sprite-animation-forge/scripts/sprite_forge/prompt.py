@@ -55,7 +55,7 @@ from importlib import resources
 from .errors import ForgeError
 from .plan import DIRECTIONS_BY_VIEW, resolve_unit
 
-PROMPT_TEMPLATE_VERSION = "action_prompt@1"
+PROMPT_TEMPLATE_VERSION = "action_prompt@2"
 MAX_PROMPT_CHARS = 6000
 MAX_EXTRA_CHARS = 500
 EDGE_TOUCH_MARGIN_PCT = 15
@@ -99,6 +99,16 @@ def _sections(name: str) -> dict[str, dict[str, str]]:
         elif cur is not None:
             cur[""] = (cur[""] + "\n" + line) if "" in cur else line
     return out
+
+
+BASELINE_LINE = "- The soles of the feet sit on the same horizontal baseline in every cell of a row."
+
+
+def _baseline_line(plan: dict, action: str) -> str:
+    """Airborne actions (jump/fall) must show height changes, so they do not get the shared-baseline rule."""
+    from .plan import is_airborne
+    act = plan["actions"].get(action, {})
+    return "" if is_airborne(act, action) else BASELINE_LINE
 
 
 def _fill(name: str, **values) -> str:
@@ -303,7 +313,7 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
         blocks.append(_recovery_block(codes, frames, key_hex, identity_fields))
     empty = rows * cols - frames
     blocks += [
-        _fill("consistency_rules.txt", facing=direction),
+        _fill("consistency_rules.txt", facing=direction, baseline_line=_baseline_line(plan, action)),
         _fill("grid_rules.txt", rows=rows, cols=cols, cells=rows * cols, margin_pct=margin_pct,
               empty_cells_line=_template("grid_empty_cells.txt").format(frames=frames, empty_cells=empty)
               if empty else ""),

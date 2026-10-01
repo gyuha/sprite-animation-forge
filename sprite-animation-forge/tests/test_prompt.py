@@ -216,7 +216,7 @@ def test_prompt_templates_load_from_package_resources():
 
 
 def test_prompt_template_version_format():
-    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@1"
+    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@2"
     assert pr.build_prompt(side_plan(), PROFILE, "walk").template_version == pr.PROMPT_TEMPLATE_VERSION
 
 
@@ -456,3 +456,23 @@ def test_prompt_every_action_builds_and_validates(action, view):
     direction = "down" if view == "topdown" else None
     text = pr.build_prompt(plan, PROFILE, action, direction).text
     assert pr.validate_prompt(text) == []
+
+
+BASELINE_SENTENCE = "soles of the feet sit on the same horizontal baseline"
+
+
+@pytest.mark.parametrize("action,expected", [("walk", True), ("idle", True), ("attack", True), ("jump", False), ("fall", False)])
+def test_prompt_shared_baseline_rule_is_dropped_for_airborne_actions(action, expected):
+    p = make_plan((action,))
+    text = pr.build_prompt(p, PROFILE, action).text
+    assert (BASELINE_SENTENCE in text) is expected
+    assert pr.validate_prompt(text) == []
+
+
+def test_prompt_template_version_was_bumped_for_the_airborne_change():
+    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@2"
+
+
+def test_plan_process_params_marks_airborne_actions_to_keep_vertical_travel():
+    p = make_plan(("walk", "jump", "fall"))
+    assert [plan_mod.process_params(p, a).preserve_vertical for a in ("walk", "jump", "fall")] == [False, True, True]

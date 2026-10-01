@@ -6,9 +6,10 @@ Public API
     The fields of character-scale-profile.json (docs/06 section 5) that the pipeline
     reads; only ``norm_scale`` is required. ``ScaleProfile.from_dict(d)`` ignores
     unknown keys. Profile *generation* is a later task.
-``fit_scale(measures, layout, anchor, x_anchor) -> float``
+``fit_scale(measures, layout, anchor, x_anchor, anchors=None) -> float``
     Largest shared scale that keeps every frame inside the margins when placed by its
-    anchor point (docs/05 section 7.1). Empty-cell ``None`` entries are skipped.
+    anchor point (docs/05 section 7.1) - or by the explicit per-frame ``anchors`` points of align=register.
+    Empty-cell ``None`` entries are skipped.
 ``preserve_scale(profile, raw_cell_height) -> float``   ``norm_scale / RH``
 ``choose_scale(strategy, measures, layout, anchor, x_anchor, profile, raw_cell_height)
 -> ScaleChoice``  (``scale``, ``strategy`` actually used, ``warnings``). ``preserve``
@@ -61,13 +62,14 @@ class ScaleChoice:
     warnings: list[str] = field(default_factory=list)
 
 
-def fit_scale(measures, layout: Layout, anchor: str, x_anchor: str) -> float:
+def fit_scale(measures, layout: Layout, anchor: str, x_anchor: str, anchors=None) -> float:
     up_room, down_room, side_room = layout.limits(anchor)
     up = down = side = 0.0
-    for m in measures:
+    for i, m in enumerate(measures):
         if m is None:
             continue
-        ax, ay = m.anchor_point(anchor, x_anchor)
+        explicit = anchors[i] if anchors else None
+        ax, ay = explicit if explicit is not None else m.anchor_point(anchor, x_anchor)
         up = max(up, ay - m.bbox[1])
         down = max(down, m.bbox[3] - ay)
         side = max(side, ax - m.bbox[0], m.bbox[2] - ax)
@@ -87,6 +89,7 @@ def choose_scale(
     x_anchor: str,
     profile: ScaleProfile | dict | None = None,
     raw_cell_height: int | None = None,
+    anchors=None,
 ) -> ScaleChoice:
     if strategy not in ("fit", "preserve"):
         raise ValueError(f"unknown scale_strategy {strategy!r}")
@@ -95,12 +98,12 @@ def choose_scale(
             profile = ScaleProfile.from_dict(profile)
         if profile is not None and raw_cell_height:
             return ScaleChoice(preserve_scale(profile, raw_cell_height), "preserve")
-        return ScaleChoice(fit_scale(measures, layout, anchor, x_anchor), "fit", ["no_scale_profile"])
-    return ScaleChoice(fit_scale(measures, layout, anchor, x_anchor), "fit")
+        return ScaleChoice(fit_scale(measures, layout, anchor, x_anchor, anchors), "fit", ["no_scale_profile"])
+    return ScaleChoice(fit_scale(measures, layout, anchor, x_anchor, anchors), "fit")
 
 
-def overflow_px(m: Measure, scale: float, layout: Layout, anchor: str, x_anchor: str) -> dict:
-    ax, ay = m.anchor_point(anchor, x_anchor)
+def overflow_px(m: Measure, scale: float, layout: Layout, anchor: str, x_anchor: str, anchor_xy=None) -> dict:
+    ax, ay = anchor_xy if anchor_xy is not None else m.anchor_point(anchor, x_anchor)
     tx, ty = layout.target(anchor)
     left = tx + (m.bbox[0] - ax) * scale
     right = tx + (m.bbox[2] - ax) * scale

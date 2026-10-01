@@ -58,7 +58,8 @@ def test_process_frames_equal_sheet_slices(tmp_path):
 
 
 def test_process_baseline_jitter_frames_end_on_baseline(tmp_path):
-    res = run(tmp_path, "baseline_jitter")
+    # legacy per-frame alignment pins every frame's feet to the baseline (align=register keeps the model's grounding)
+    res = run(tmp_path, "baseline_jitter", params=ProcessParams(align="per_frame"))
     for f in res.data["derived"]["frames"]:
         assert f["offset"] is not None and all(isinstance(v, int) for v in f["offset"])
     assert res.data["derived"]["baseline_y"] == 118

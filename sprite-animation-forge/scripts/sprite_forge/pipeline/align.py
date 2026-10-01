@@ -2,7 +2,8 @@
 
 Public API
 ----------
-``place_frame(cell_rgba, measure, scale, layout, anchor, x_anchor, pixel_art) -> Placement``
+``place_frame(cell_rgba, measure, scale, layout, anchor, x_anchor, pixel_art, anchor_xy=None) -> Placement``
+    (``anchor_xy``: explicit raw cell point mapped onto the target - used by align=register)
     Crop the bbox (+2 px margin), resample by ``scale``, recompute the anchor point on the
     resampled crop, and paste it on a transparent ``cell_w x cell_h`` canvas at the integer
     offset ``floor(target - anchor' + 0.5)``. Pixels outside the canvas are clipped (the
@@ -53,6 +54,7 @@ def place_frame(
     anchor: str,
     x_anchor: str,
     pixel_art: bool = False,
+    anchor_xy: tuple[float, float] | None = None,
 ) -> Placement:
     h, w = cell_rgba.shape[:2]
     x0, y0, x1, y1 = measure.bbox
@@ -63,7 +65,7 @@ def place_frame(
 
     fx = small.shape[1] / crop.shape[1]
     fy = small.shape[0] / crop.shape[0]
-    ax, ay = measure.anchor_point(anchor, x_anchor)
+    ax, ay = anchor_xy if anchor_xy is not None else measure.anchor_point(anchor, x_anchor)
     ax_s, ay_s = (ax - cx0) * fx, (ay - cy0) * fy
     tx, ty = layout.target(anchor)
     dx, dy = round_half_up(tx - ax_s), round_half_up(ty - ay_s)
