@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils'
 
 const NAV = [
   { to: '/', label: '캐릭터', end: true },
-  { to: '/status', label: '상태', end: false },
 ]
 
 export default function AppLayout() {

@@ -49,13 +49,13 @@ describe('studio entry for completed characters', () => {
       </MemoryRouter>,
     )
 
-  it('nav: only the top-level pages are linked (no per-character or new-character links)', async () => {
+  it('nav: only the character list is linked (no status, new-character or per-character links)', async () => {
     mockApi({ ...base, 'GET /api/characters': { characters: [] } })
     renderLayout('/c/hero/export')
     await screen.findByText('export')
     const nav = screen.getByRole('navigation')
     expect(nav).toHaveTextContent('캐릭터')
-    expect(nav).toHaveTextContent('상태')
+    expect(nav).not.toHaveTextContent('상태') // the status page is reached from the job tray's footer link
     expect(nav).not.toHaveTextContent('새 캐릭터')
     expect(screen.queryByTestId('nav-studio')).toBeNull()
     expect(screen.queryByTestId('nav-view')).toBeNull()
