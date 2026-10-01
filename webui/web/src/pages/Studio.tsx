@@ -11,7 +11,7 @@
  *   generate-button                 "새로 생성" (비활성이면 사유가 tooltip, 부모 span[data-reason])
  *   upload-button, upload-input     직접 업로드 버튼 / 숨은 file input
  *   job-<jobId>                     진행 중 Job (JobProgress)
- *   job-failed, retry-button        마지막 Job이 실패했을 때의 카드 / 다시 시도
+ *   job-failed, job-failed-details-toggle, job-failed-details, retry-button   마지막 Job이 실패했을 때의 카드(JobFailedCard) / "자세히" / stderr 끝 20줄 / 다시 시도
  *   interrupted-notice, regenerate-button   선택한 시도가 중단됨일 때 안내 / 다시 생성
  *   view-tab-raw|clean|frames       보기 탭 (원본+격자 / 배경 제거 / 프레임)
  *   grid-overlay, compare-slider, frame-grid, frame-<i>   보기 탭 내용 / 프레임 썸네일(클릭 시 그 프레임에서 정지)
@@ -40,6 +40,7 @@ import { AnimationPlayer, type Overlay } from '@/components/AnimationPlayer'
 import { AttemptStrip } from '@/components/AttemptStrip'
 import { CompareSlider } from '@/components/CompareSlider'
 import { GridOverlay } from '@/components/GridOverlay'
+import { JobFailedCard } from '@/components/JobFailedCard'
 import { JobProgress } from '@/components/JobProgress'
 import { QcPanel } from '@/components/QcPanel'
 import { ReasonTooltip } from '@/components/ReasonTooltip'
@@ -289,13 +290,9 @@ function Workspace({ cid, plan, action, direction, rows, codexReady, activeJob, 
         </ReasonTooltip>
         {activeJob && <JobProgress job={activeJob} />}
         {!activeJob && lastJob?.state === 'failed' && (
-          <Alert variant="destructive" data-testid="job-failed">
-            <AlertTitle>생성에 실패했습니다</AlertTitle>
-            <AlertDescription>
-              <p>{lastJob.error?.message ?? lastJob.error?.code ?? '알 수 없는 오류'}</p>
-              <Button size="sm" variant="outline" className="mt-2" disabled={!!generateReason} onClick={() => generate()} data-testid="retry-button">다시 시도</Button>
-            </AlertDescription>
-          </Alert>
+          <JobFailedCard job={lastJob}>
+            <Button size="sm" variant="outline" className="mt-2" disabled={!!generateReason} onClick={() => generate()} data-testid="retry-button">다시 시도</Button>
+          </JobFailedCard>
         )}
       </section>
 

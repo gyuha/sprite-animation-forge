@@ -20,7 +20,7 @@ export const dirQuery = (direction?: Direction) => (direction ? `?direction=${di
 export interface Health {
   ready: boolean
   warnings: string[]
-  codex: { installed: boolean; version: string | null; version_ok: boolean; logged_in: boolean; auth: string | null; image_generation: boolean }
+  codex: { installed: boolean; version: string | null; tested_version?: string; codex_home?: string; version_ok: boolean; logged_in: boolean; auth: string | null; image_generation: boolean }
   python: Record<string, string | null>
 }
 export interface CharacterCard {
@@ -38,6 +38,17 @@ export interface CharacterDetail {
   character: { id: string; next_step: CharacterCard['next_step'] }
   manifest: Record<string, unknown>
   status: { has_reference: boolean; has_plan: boolean; units: Record<string, unknown>[] }
+}
+/** manifest.usage (docs/08 5): accumulated Codex calls and tokens of one character. */
+export interface Usage { codex_calls: number; input_tokens: number; cached_input_tokens: number; output_tokens: number }
+/** atlas/<cid>.meta.json (docs/07 6): what the export screen needs for the atlas preview and the Phaser snippet. */
+export interface ExportMeta {
+  cell: { w: number; h: number }
+  origin: { x: number; y: number }
+  padding: number
+  baseline_y: number
+  actions: { name: string; direction: string | null; unit: string; row: number; frames: number }[]
+  texture: { file: string; sha256: string; size: [number, number] }
 }
 
 // GET /api/presets (routes/presets.py), also an untyped dict.
@@ -59,6 +70,7 @@ export const qk = {
   characters: ['characters'] as const,
   character: (cid: string) => ['characters', cid] as const,
   plan: (cid: string) => ['characters', cid, 'plan'] as const,
+  exportMeta: (cid: string) => ['characters', cid, 'export-meta'] as const,
   identity: (cid: string) => ['characters', cid, 'identity'] as const,
   attemptsOf: (cid: string) => ['characters', cid, 'attempts'] as const,
   attempts: (cid: string, action: string, direction?: Direction) => ['characters', cid, 'attempts', action, direction ?? null] as const,
@@ -110,3 +122,7 @@ export const fetchActiveJobs = () => api<{ jobs: Job[] }>('/api/jobs?active=1').
 
 /** Job snapshots kept in the Query cache; sse.ts upserts them. Initial value = currently active jobs. */
 export const useJobs = () => useQuery({ queryKey: qk.jobs, queryFn: fetchActiveJobs, staleTime: Infinity })
+
+/** Export meta (origin, atlas size, rows); read only once an export exists. */
+export const useExportMeta = (cid: string, enabled: boolean) =>
+  useQuery({ queryKey: qk.exportMeta(cid), queryFn: () => api<ExportMeta>(`/files/${cid}/atlas/${cid}.meta.json`), enabled })

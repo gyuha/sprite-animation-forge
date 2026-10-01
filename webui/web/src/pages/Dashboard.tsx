@@ -7,17 +7,20 @@
  *   character-card-<id>         캐릭터 카드(링크)
  *   character-progress-<id>     채택 unit 진행 막대
  *   character-next-<id>         다음 할 일 배지
+ *   character-batch-<id>        진행 중인 일괄 생성 문구 ("hero: 2/4 · walk 생성 중") + 진행 막대(data-percent)
  */
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { AlertTriangle, Plus } from 'lucide-react'
-import { useCharacters, useHealth, type CharacterCard } from '@/api/queries'
+import { useCharacters, useHealth, useJobs, type CharacterCard } from '@/api/queries'
+import { isActive, type JobSnapshot } from '@/api/sse'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { summarizeBatch } from '@/lib/batch'
 
 const NEXT_STEP: Record<CharacterCard['next_step'], { label: string; to: (id: string) => string }> = {
   reference: { label: 'reference 필요', to: () => '/new' },
@@ -45,7 +48,17 @@ function CodexBanner({ warnings }: { warnings: string[] }) {
   )
 }
 
-function CharacterCardView({ c }: { c: CharacterCard }) {
+function BatchLine({ job }: { job: JobSnapshot }) {
+  const s = summarizeBatch(job)
+  return (
+    <div className="space-y-1" data-testid={`character-batch-${job.character}`} data-percent={Math.round(s.percent)}>
+      <p className="text-xs">{s.text}</p>
+      <Progress value={s.percent} aria-label={`${job.character} 일괄 생성 진행률`} />
+    </div>
+  )
+}
+
+function CharacterCardView({ c, batch }: { c: CharacterCard; batch?: JobSnapshot }) {
   const next = NEXT_STEP[c.next_step]
   const pct = c.units_total ? (c.units_accepted / c.units_total) * 100 : 0
   return (
@@ -59,6 +72,7 @@ function CharacterCardView({ c }: { c: CharacterCard }) {
             <img src={`/files/${c.id}/reference/character.png`} alt={`${c.id} reference`} className="h-32 w-full rounded bg-muted object-contain" />
           )}
           <Progress value={pct} aria-label={`${c.id} 진행률`} data-testid={`character-progress-${c.id}`} />
+          {batch && <BatchLine job={batch} />}
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">{c.units_accepted}/{c.units_total} 채택</span>
             <Badge variant={c.next_step === 'export' ? 'default' : 'secondary'} data-testid={`character-next-${c.id}`}>{next.label}</Badge>
@@ -72,6 +86,8 @@ function CharacterCardView({ c }: { c: CharacterCard }) {
 export default function Dashboard() {
   const characters = useCharacters()
   const health = useHealth()
+  const jobs = useJobs()
+  const batches = ((jobs.data ?? []) as JobSnapshot[]).filter((j) => j.type === 'batch_generate' && isActive(j))
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -97,7 +113,7 @@ export default function Dashboard() {
       )}
       {!!characters.data?.length && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {characters.data.map((c) => <CharacterCardView key={c.id} c={c} />)}
+          {characters.data.map((c) => <CharacterCardView key={c.id} c={c} batch={batches.find((j) => j.character === c.id)} />)}
         </div>
       )}
     </div>

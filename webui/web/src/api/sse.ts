@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { fetchActiveJobs, qk, type Job } from './queries'
 
@@ -10,6 +10,17 @@ export const isActive = (job: Job) => !FINISHED.includes(job.state)
 
 export const BACKOFF_START_MS = 1_000
 export const BACKOFF_MAX_MS = 30_000
+
+/** Event-stream connection state, shared with the "서버에 연결할 수 없음" banner. */
+let connected = true
+const listeners = new Set<() => void>()
+export function setConnected(value: boolean) {
+  if (connected === value) return
+  connected = value
+  listeners.forEach((l) => l())
+}
+export const useEventStreamConnected = () =>
+  useSyncExternalStore((l) => { listeners.add(l); return () => { listeners.delete(l) } }, () => connected)
 
 export function upsertJob(qc: QueryClient, snap: JobSnapshot) {
   qc.setQueryData<JobSnapshot[]>(qk.jobs, (old = []) => {
@@ -48,6 +59,7 @@ export function useJobEvents() {
     const connect = () => {
       es = new EventSource('/api/events')
       es.onopen = () => {
+        setConnected(true)
         delay = BACKOFF_START_MS
         resyncJobs(qc).catch(() => {})
       }
@@ -60,6 +72,7 @@ export function useJobEvents() {
         }
       })
       es.onerror = () => {
+        setConnected(false)
         // CONNECTING: the browser retries by itself (onopen resyncs). CLOSED (e.g. HTTP error): retry with backoff.
         if (stopped || !es || es.readyState !== EventSource.CLOSED) return
         es.close()
@@ -72,6 +85,7 @@ export function useJobEvents() {
       stopped = true
       clearTimeout(timer)
       es?.close()
+      setConnected(true)
     }
   }, [qc])
 }

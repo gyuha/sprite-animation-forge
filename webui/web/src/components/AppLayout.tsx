@@ -1,7 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useJobEvents } from '@/api/sse'
+import { BatchNotifier } from '@/components/BatchNotifier'
 import { CodexStatusBadge } from '@/components/CodexStatusBadge'
 import { JobTray } from '@/components/JobTray'
+import { ServerBanner } from '@/components/ServerBanner'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -35,9 +37,11 @@ export default function AppLayout() {
           <JobTray />
         </div>
       </header>
+      <ServerBanner />
       <main className="p-6">
         <Outlet />
       </main>
+      <BatchNotifier />
       <Toaster />
     </TooltipProvider>
   )

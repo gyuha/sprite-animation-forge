@@ -1,6 +1,7 @@
 import { ListTodo } from 'lucide-react'
 import { useJobs } from '@/api/queries'
 import { isActive, type JobSnapshot } from '@/api/sse'
+import { CancelJobButton } from '@/components/CancelJobButton'
 import { JobProgress } from '@/components/JobProgress'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,8 +33,9 @@ export function JobTray() {
           <ScrollArea className="max-h-80">
             <ul className="space-y-3 pr-3">
               {jobs.map((job) => (
-                <li key={job.id}>
+                <li key={job.id} className="space-y-1.5">
                   <JobProgress job={job} />
+                  <CancelJobButton job={job} />
                 </li>
               ))}
             </ul>

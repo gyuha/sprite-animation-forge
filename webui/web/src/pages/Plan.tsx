@@ -16,14 +16,24 @@
  *   plan-identity-link              Identity 화면 링크
  *   plan-save                       저장 (플랜이 없으면 POST, 있으면 PUT)
  *   plan-continue                   저장 후 스튜디오(/c/:id/studio/:action)로 이동
+ *   generate-all                    "전부 생성" (주 버튼): 플랜 저장 → POST generate-all. Codex 미준비/진행 중이면 비활성(사유 tooltip)
+ *   auto-accept-switch              자동 채택 (기본 켬) → body.auto_accept
+ *   max-regen-select                재생성 한도 0|1|2 (기본 1) 트리거 → body.max_regenerations
+ *   batch-panel(data-state)         이 캐릭터의 일괄 Job 패널 (BatchPanel). 안의 testid:
+ *     batch-status, batch-progress(data-percent), job-cancel-<jobId>, batch-units, batch-unit-<unit>(data-state=accepted|review),
+ *     batch-review-link-<unit>, batch-interrupted, batch-restart, job-failed, go-export
+ *   이 화면에서 시작한 일괄 생성이 검토 필요 없이 끝나면 자동으로 /c/:id/export 로 이동한다(state.autoExport).
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ChevronDown } from 'lucide-react'
-import { useCreatePlan, useSavePlan } from '@/api/mutations'
-import { useCharacter, useIdentity, usePlan, usePresets, type PlanResponse, type Presets } from '@/api/queries'
+import { useCreatePlan, useGenerateAll, useSavePlan } from '@/api/mutations'
+import { useCharacter, useHealth, useIdentity, useJobs, usePlan, usePresets, type PlanResponse, type Presets } from '@/api/queries'
+import { isActive, type JobSnapshot } from '@/api/sse'
 import { ApiError } from '@/api/client'
+import { BatchPanel } from '@/components/BatchPanel'
+import { ReasonTooltip } from '@/components/ReasonTooltip'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,6 +45,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { latestBatchJob, summarizeBatch } from '@/lib/batch'
 import { VIEW_OPTIONS } from '@/lib/character'
 import { resolveKeyColor } from '@/lib/color'
 import {
@@ -139,6 +150,13 @@ function PlanEditor({ cid, presets, plan, initial, keyColors }: {
   const createPlan = useCreatePlan()
   const savePlan = useSavePlan()
   const [draft, setDraft] = useState(initial)
+  const health = useHealth()
+  const jobs = useJobs()
+  const generateAll = useGenerateAll()
+  const [autoAccept, setAutoAccept] = useState(true)
+  const [maxRegen, setMaxRegen] = useState('1')
+  const [startedId, setStartedId] = useState<string | null>(null) // batch started from this screen
+  const batch = latestBatchJob((jobs.data ?? []) as JobSnapshot[], cid)
 
   const saved = plan !== null // an existing plan is saved with PUT and keeps its view
   const allActions = [...Object.keys(presets.frame_presets), ...draft.actions.filter((a) => !(a in presets.frame_presets))]
@@ -165,11 +183,14 @@ function PlanEditor({ cid, presets, plan, initial, keyColors }: {
     patch({ directions: on ? [...draft.directions, d] : draft.directions.filter((x) => x !== d) })
   }
 
+  const persist = () =>
+    saved
+      ? savePlan.mutateAsync({ cid, plan: applyDraftToPlan(plan.plan, draft, presets) })
+      : createPlan.mutateAsync({ cid, body: buildCreateRequest(draft, presets) })
+
   async function save(thenGo: boolean) {
     try {
-      const res = saved
-        ? await savePlan.mutateAsync({ cid, plan: applyDraftToPlan(plan.plan, draft, presets) })
-        : await createPlan.mutateAsync({ cid, body: buildCreateRequest(draft, presets) })
+      const res = await persist()
       toast.success('플랜을 저장했습니다')
       if (thenGo) navigate(`/c/${cid}/studio/${(res.plan.order as string[])[0]}`)
     } catch (e) {
@@ -177,8 +198,28 @@ function PlanEditor({ cid, presets, plan, initial, keyColors }: {
     }
   }
 
+  /** "전부 생성": the server needs the plan, so an unsaved or edited draft is saved first. */
+  async function startBatch() {
+    try {
+      if (!saved || JSON.stringify(draft) !== JSON.stringify(initial)) await persist()
+      const { job } = await generateAll.mutateAsync({ cid, auto_accept: autoAccept, max_regenerations: Number(maxRegen) })
+      setStartedId(job.id)
+    } catch (e) {
+      toast.error(message(e))
+    }
+  }
+
+  // Shortest path (docs/09 3.1): a batch started here that ended with nothing to review goes straight on to the export.
+  useEffect(() => {
+    if (batch && batch.id === startedId && batch.state === 'succeeded' && summarizeBatch(batch).needsReview.length === 0) {
+      navigate(`/c/${cid}/export`, { state: { autoExport: true } })
+    }
+  }, [batch, startedId, cid, navigate])
+
   const invalid = draft.actions.length === 0 || (topdown && draft.directions.length === 0)
-  const pending = createPlan.isPending || savePlan.isPending
+  const pending = createPlan.isPending || savePlan.isPending || generateAll.isPending
+  const batchActive = !!batch && isActive(batch)
+  const generateReason = batchActive ? '이미 일괄 생성이 진행 중입니다' : health.data?.ready === false ? 'Codex를 사용할 수 없습니다 (상단 상태 배지 확인)' : null
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -268,9 +309,28 @@ function PlanEditor({ cid, presets, plan, initial, keyColors }: {
         </p>
         <div className="flex gap-2">
           <Button variant="outline" disabled={invalid || pending} data-testid="plan-save" onClick={() => save(false)}>저장</Button>
-          <Button disabled={invalid || pending} data-testid="plan-continue" onClick={() => save(true)}>저장 후 생성 →</Button>
+          <Button variant="outline" disabled={invalid || pending} data-testid="plan-continue" onClick={() => save(true)}>저장 후 스튜디오 →</Button>
+          <ReasonTooltip reason={generateReason}>
+            <Button disabled={invalid || pending || !!generateReason} data-testid="generate-all" onClick={startBatch}>전부 생성</Button>
+          </ReasonTooltip>
         </div>
       </section>
+
+      <section className="flex flex-wrap items-center gap-6">
+        <div className="flex items-center gap-2">
+          <Switch id="auto-accept" checked={autoAccept} data-testid="auto-accept-switch" onCheckedChange={setAutoAccept} />
+          <Label htmlFor="auto-accept">자동 채택 (QC 통과·경고면 바로 채택)</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label>재생성 한도</Label>
+          <Select value={maxRegen} onValueChange={setMaxRegen}>
+            <SelectTrigger className="w-20" data-testid="max-regen-select"><SelectValue /></SelectTrigger>
+            <SelectContent>{['0', '1', '2'].map((n) => <SelectItem key={n} value={n}>{n}회</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+      </section>
+
+      {batch && <BatchPanel job={batch} onRestart={startBatch} restartReason={generateReason} />}
     </div>
   )
 }

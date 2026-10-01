@@ -1,6 +1,7 @@
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import type { JobSnapshot } from '@/api/sse'
+import { summarizeBatch } from '@/lib/batch'
 
 const TYPE_LABEL: Record<JobSnapshot['type'], string> = {
   reference_generate: '레퍼런스 생성',
@@ -41,7 +42,7 @@ export function JobProgress({ job }: { job: JobSnapshot }) {
       </div>
       <Progress value={value} aria-label="진행률" />
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{job.message ?? job.stage ?? ''}</span>
+        <span>{job.type === 'batch_generate' ? summarizeBatch(job).text : (job.message ?? job.stage ?? '')}</span>
         <span>
           {job.progress ? `${job.progress.done}/${job.progress.total}` : job.state === 'running' ? `${job.elapsed_s}초` : ''}
         </span>

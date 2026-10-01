@@ -1,9 +1,9 @@
 /** Mutations for S1-S4. Invalidation follows docs/09 9.3; Job-starting calls also put the Job into the cache. */
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api, apiJson } from './client'
-import { actionPath, dirQuery, qk, type AttemptDetail, type AttemptList, type Direction, type IdentityResponse, type PlanResponse } from './queries'
+import { actionPath, dirQuery, qk, type AttemptDetail, type AttemptList, type Direction, type Health, type IdentityResponse, type PlanResponse } from './queries'
 import { mergeSetIntoParams, type ProcessSet } from '@/lib/reprocess'
-import { upsertJob } from './sse'
+import { upsertJob, type JobSnapshot } from './sse'
 import type { components } from './types'
 
 type Schemas = components['schemas']
@@ -177,5 +177,44 @@ export function useUploadRaw() {
       qc.invalidateQueries({ queryKey: qk.attempts(cid, action, direction) })
       refreshCharacter(qc, cid)
     },
+  })
+}
+
+/** "전부 생성": one batch Job for every unit without an accepted attempt (docs/09 7). */
+export function useGenerateAll() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ cid, auto_accept, max_regenerations }: { cid: string; auto_accept: boolean; max_regenerations: number }) =>
+      apiJson<JobCreated>(`/api/characters/${cid}/generate-all`, 'POST', { auto_accept, max_regenerations }),
+    onSuccess: ({ job }) => upsertJob(qc, job),
+  })
+}
+
+export function useCancelJob() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (jid: string) => apiJson<{ job: JobSnapshot }>(`/api/jobs/${jid}/cancel`, 'POST'),
+    onSuccess: ({ job }) => upsertJob(qc, job),
+  })
+}
+
+/** Writes atlas/preview/animations.json; the manifest (`exports`) and the export meta become stale. */
+export function useExport() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (cid: string) => apiJson<{ files: string[]; warnings: string[] }>(`/api/characters/${cid}/export`, 'POST'),
+    onSuccess: (_, cid) => {
+      qc.invalidateQueries({ queryKey: qk.character(cid), exact: true })
+      qc.invalidateQueries({ queryKey: qk.exportMeta(cid) })
+    },
+  })
+}
+
+/** "다시 확인": bypasses the server's 60 s doctor cache (`?refresh=1`) and replaces the cached health. */
+export function useRecheckHealth() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<Health>('/api/health?refresh=1'),
+    onSuccess: (data) => qc.setQueryData(qk.health, data),
   })
 }

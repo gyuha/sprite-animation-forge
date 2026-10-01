@@ -1,8 +1,8 @@
 import { MemoryRouter } from 'react-router-dom'
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { mockApi } from '@/test-utils'
-import { renderWithClient } from '@/test-utils'
+import { makeClientWithJobs, mockApi, renderWithClient } from '@/test-utils'
+import { makeJob } from '@/test-fixtures'
 import Dashboard from './Dashboard'
 
 const health = (ready: boolean) => ({
@@ -44,5 +44,14 @@ describe('Dashboard', () => {
     mockApi({ 'GET /api/health': health(true), 'GET /api/characters': { characters: [] } })
     renderDashboard()
     expect(await screen.findByTestId('dashboard-empty')).toHaveTextContent('끌어다 놓거나')
+  })
+
+  it('shows the running batch on the character card', async () => {
+    mockApi({ 'GET /api/health': health(true), 'GET /api/characters': { characters: [card('hero'), card('slime')] } })
+    const job = makeJob({ type: 'batch_generate', action: null, direction: null, progress: { done: 2, total: 4, current: 'walk' } })
+    renderWithClient(<MemoryRouter><Dashboard /></MemoryRouter>, makeClientWithJobs([job]))
+    expect(await screen.findByTestId('character-batch-hero')).toHaveTextContent('hero: 2/4 · walk 생성 중')
+    expect(screen.getByTestId('character-batch-hero')).toHaveAttribute('data-percent', '50')
+    expect(screen.queryByTestId('character-batch-slime')).not.toBeInTheDocument()
   })
 })
