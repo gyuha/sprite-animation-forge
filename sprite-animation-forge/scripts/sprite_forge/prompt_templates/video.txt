@@ -1,0 +1,6 @@
+Animate this exact character in place: {title}.
+{description}
+{loop_line}
+The character stays centered and does not travel across the frame. The camera is completely static: no zoom, no pan, no cuts.
+Keep the plain {key_name} ({key_hex}) background perfectly flat and unchanged in every frame; no shadows, no ground, no particles or effects outside the character.
+The character's design, colors, proportions and art style stay identical to the first frame in every frame.

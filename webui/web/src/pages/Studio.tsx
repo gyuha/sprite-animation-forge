@@ -19,6 +19,7 @@
  *   player-play, player-prev, player-next, player-fps, player-scale-<1|2|4>, player-bg-<checker|dark|light|green>,
  *   player-overlay-<baseline|anchor|bbox|onion>   플레이어 컨트롤
  *   attempt-strip, attempt-<NNN>, attempt-qc-<NNN>, accepted-badge-<NNN>, interrupted-badge-<NNN>   시도 기록
+ *   attempt-video-link              method=video 시도의 원본 동영상(raw.mp4) 링크
  *   accept-button, accept-confirm, accept-cancel   채택 / QC fail 확인 다이얼로그 버튼
  *   qc-panel, qc-status(data-status), qc-score, qc-item-<QC-ID>(data-grade), qc-id-<QC-ID>
  *   vision-review-button("비전 심사", Codex 1회, 참고용), vision-review-result, vision-review-overall(data-overall), vision-review-<loop|limbs|identity>(data-ok), vision-review-summary
@@ -344,6 +345,11 @@ function Workspace({ cid, plan, action, direction, rows, codexReady, activeJob, 
               {!mirrored && <TabsTrigger value="clean" data-testid="view-tab-clean">배경 제거</TabsTrigger>}
               <TabsTrigger value="frames" data-testid="view-tab-frames">프레임</TabsTrigger>
             </TabsList>
+            {detail?.files.video && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                <a className="underline" href={detail.files.video} target="_blank" rel="noreferrer" data-testid="attempt-video-link">생성된 동영상 보기</a>
+              </p>
+            )}
             {detail?.files.raw && (
               <TabsContent value="raw"><GridOverlay src={detail.files.raw} derived={derived} /></TabsContent>
             )}

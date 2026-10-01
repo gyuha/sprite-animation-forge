@@ -56,6 +56,7 @@ from .errors import ForgeError
 from .plan import DIRECTIONS_BY_VIEW, resolve_unit
 
 PROMPT_TEMPLATE_VERSION = "action_prompt@3"
+VIDEO_PROMPT_VERSION = "video_prompt@1"
 MAX_PROMPT_CHARS = 6000
 MAX_EXTRA_CHARS = 500
 EDGE_TOUCH_MARGIN_PCT = 15
@@ -246,6 +247,28 @@ def _recovery_block(codes: list[str], frames: int, key_hex: str, identity_fields
             phrases.append(table["phrase"][code].format(
                 frames=frames, key_name=_key_name(key_hex), key_hex=key_hex, fields=fields))
     return _fill("recovery_block.txt", phrases="\n".join(phrases))
+
+
+def build_video_prompt(plan: dict, profile: dict | None, action: str, extra: str | None = None) -> PromptResult:
+    """Prompt for ``method=video`` (docs/13): the video model animates the first frame (the keyed character on a key
+    colour canvas), so there is no grid / identity block, only the motion, loop and background rules."""
+    resolve_unit(plan, action, None)
+    act = plan["actions"][action]
+    lib = MOTION_LIBRARY.get(action)
+    weapon = ((profile or {}).get("identity", {}).get("weapon") or "").strip() or "weapon"
+    description = act.get("motion") or (lib["description"].format(weapon=weapon) if lib else None)
+    if description is None:
+        raise ForgeError("invalid_params", f"custom action {action!r} has no motion description")
+    extra = (extra or "").strip()
+    if len(extra) > MAX_EXTRA_CHARS:
+        raise ForgeError("invalid_params", f"extra is {len(extra)} chars; max {MAX_EXTRA_CHARS}")
+    key_hex = plan["key_color"].upper()
+    blocks = [_fill("video.txt", title=(lib["title"] if lib else action.replace("_", " ")), description=description,
+                    loop_line=_sections("video_loop_line.txt")["loop" if act["loop"] else "oneshot"][""],
+                    key_name=_key_name(key_hex), key_hex=key_hex)]
+    if extra:
+        blocks.append(_fill("additional_direction.txt", extra=extra))
+    return PromptResult("\n\n".join(blocks) + "\n", VIDEO_PROMPT_VERSION, ["character"], [])
 
 
 # ---------------------------------------------------------------- references

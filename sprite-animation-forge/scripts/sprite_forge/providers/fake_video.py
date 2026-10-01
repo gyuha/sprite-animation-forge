@@ -17,6 +17,20 @@ class FakeXaiTransport:
         self.auth_headers: list[str | None] = []
         self._polls = 0
 
+    def _animate(self, data_url: str) -> None:
+        """Default ``ok`` mode: answer with a real clip animating the submitted first frame (when ffmpeg exists)."""
+        import base64
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory(prefix="fake-video-") as tmp:
+            out = Path(tmp) / "clip.mp4"
+            try:
+                if make_bobbing_mp4(base64.b64decode(data_url.split(",", 1)[1]), out):
+                    self.video = out.read_bytes()
+            except Exception:  # not a decodable image (unit tests send placeholder bytes): keep the stub clip
+                pass
+
     def __call__(self, method, url, headers, body, timeout):
         self.calls.append((method, url))
         self.auth_headers.append(headers.get("Authorization"))
@@ -27,6 +41,8 @@ class FakeXaiTransport:
             return 429, b"{}"
         if method == "POST":
             self.requests.append(json.loads(body))
+            if self.mode == "ok" and self.video is FAKE_MP4:
+                self._animate(self.requests[-1]["image"]["url"])
             return 200, json.dumps({"request_id": "req-1"}).encode()
         if url.endswith("/v1/videos/req-1"):
             self._polls += 1
@@ -38,3 +54,32 @@ class FakeXaiTransport:
         if url == "https://cdn.fake/v.mp4":
             return 200, (b"not an mp4" if self.mode == "bad_file" else self.video)
         return 404, b"{}"
+
+
+def make_bobbing_mp4(first_png: bytes, out_path, frames: int = 48, period: int = 16, fps: int = 24) -> bool:
+    """Encode a looping clip from the first frame (whole image bobs vertically, the upper half sways), like a model
+    that animates the given character. False when ffmpeg is unavailable. Offline/test use only."""
+    import io
+    import math
+    import shutil
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    import numpy as np
+    from PIL import Image
+
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg is None:
+        return False
+    base = np.asarray(Image.open(io.BytesIO(first_png)).convert("RGB"))
+    h = base.shape[0]
+    with tempfile.TemporaryDirectory(prefix="fake-clip-") as tmp:
+        for i in range(frames):
+            phase = 2 * math.pi * i / period
+            img = np.roll(base, round(h * 0.02 * math.sin(phase)), axis=0)
+            top = np.roll(img[: h // 2], round(h * 0.015 * math.sin(2 * phase)), axis=1)
+            Image.fromarray(np.concatenate([top, img[h // 2:]]), "RGB").save(Path(tmp) / f"{i:04d}.png")
+        proc = subprocess.run([ffmpeg, "-v", "error", "-y", "-framerate", str(fps), "-i", str(Path(tmp) / "%04d.png"),
+                               "-pix_fmt", "yuv420p", "-c:v", "libx264", "-crf", "12", str(out_path)], capture_output=True)
+    return proc.returncode == 0

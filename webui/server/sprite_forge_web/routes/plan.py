@@ -108,6 +108,8 @@ def _check_invariants(cid: str, plan: dict) -> None:
 
     if plan["character"] != cid:
         raise bad(f"plan.character {plan['character']!r} does not match {cid!r}")
+    if len(plan["directions"]) > 1 and any(a.get("method") == "video" for a in plan["actions"].values()):
+        raise bad("method=video supports single-direction plans only")
     if sorted(plan["order"]) != sorted(plan["actions"]) or len(set(plan["order"])) != len(plan["order"]):
         raise bad("order must list every action exactly once")
     dirs = plan["directions"]

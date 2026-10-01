@@ -18,7 +18,7 @@ from ..errors import ApiError
 from ..deps import root_of
 
 router = APIRouter()
-ALLOWED_EXT = {".png", ".gif", ".json", ".txt", ".jsonl"}
+ALLOWED_EXT = {".png", ".gif", ".json", ".txt", ".jsonl", ".mp4"}
 
 
 def _not_found() -> ApiError:

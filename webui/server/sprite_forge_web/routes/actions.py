@@ -57,6 +57,7 @@ class AttemptFiles(BaseModel):
     clean: str | None
     sheet: str | None
     prompt: str | None
+    video: str | None = None  # raw.mp4 of a method=video attempt
     frames: list[str]
 
 
@@ -146,6 +147,7 @@ def _files(cd: Path, cid: str, unit: str, aid: str) -> AttemptFiles:
     return AttemptFiles(
         raw=file_url(cd, cid, f"{base}/raw.png"), clean=file_url(cd, cid, f"{base}/clean.png"),
         sheet=file_url(cd, cid, f"{base}/sheet.png"), prompt=file_url(cd, cid, f"{base}/prompt.txt"),
+        video=file_url(cd, cid, f"{base}/raw.mp4"),
         frames=[file_url(cd, cid, f"{base}/frames/{p.name}") for p in frames])
 
 

@@ -1,0 +1,4 @@
+[loop]
+The motion is a seamless loop: the character ends in the same pose it started in.
+[oneshot]
+The character performs the motion once and returns to the starting pose at the end.

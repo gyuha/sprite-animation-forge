@@ -6,8 +6,11 @@ Public API (``cd`` = character directory ``<root>/<cid>``)
     ``<root>/.codex.lock`` (``cd.parent``). Every Codex call (generate, reference generate, identity analyze)
     holds it for the whole call, so a second CLI process waits (FIFO is not guaranteed) instead of running.
 ``record_usage(cd, usage)``  adds one call and its token usage to ``manifest.usage``.
-``generate_unit(cd, plan, profile, action, direction, extra, recovery, timeout, provider=None) -> {attempt, unit, status}``
-    allocates ``<unit>/attempts/NNN``, writes ``prompt.txt``, calls the provider. A failed generation
+``generate_unit(cd, plan, profile, action, direction, extra, recovery, timeout, provider=None,
+                video_provider=None, on_progress=None) -> {attempt, unit, status}``
+    allocates ``<unit>/attempts/NNN``, writes ``prompt.txt``, calls the provider. ``method=video`` actions go through
+    ``video_provider`` instead (clip -> ``raw.mp4`` + ``video-meta.json``, then a ``raw.png`` sheet made by
+    ``video_sprite`` so the normal pipeline processes it; no Codex lock held while the clip renders). A failed generation
     raises ``ForgeError(error_code, exit_code=2, extra={attempt, unit, status})``.
 ``generate_reference(cd, description, count, timeout, provider=None) -> {attempts: [{attempt, status, error_code?}]}``
 ``select_reference(cd, attempt) -> {reference, selected_attempt, bg_removed}``
@@ -31,6 +34,7 @@ from __future__ import annotations
 
 import contextlib
 import re
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -38,13 +42,16 @@ from PIL import Image
 
 from . import manifest as mf
 from .errors import EXIT_PRECONDITION, EXIT_PROVIDER, ForgeError
-from .fsutil import allocate_attempt, atomic_write_json, atomic_write_text, file_lock, sha256_file
+from .fsutil import allocate_attempt, atomic_write_json, atomic_write_png, atomic_write_text, file_lock, sha256_file
 from .plan import resolve_unit
-from .prompt import PromptResult, build_canonical_prompt, build_prompt
-from .providers import CodexCliProvider, GenerationRequest
+from .prompt import PromptResult, build_canonical_prompt, build_prompt, build_video_prompt
+from .providers import CodexCliProvider, GenerationRequest, VideoRequest
+from .providers.video_factory import make_video_provider
+from . import video_sprite
 from .workflow import _attempt_entry, _kind, _open_image, write_character
 
 MAX_REFERENCE_COUNT = 4
+VIDEO_MIN_TIMEOUT = 600  # a clip takes minutes; the image default (300 s) is too short
 
 
 @contextlib.contextmanager
@@ -111,8 +118,55 @@ def _fail(result, **extra) -> ForgeError:
                       {**extra, "status": result.status})
 
 
+def _generate_video_unit(cd, plan, profile, action, unit, extra, timeout, provider, on_progress) -> dict:
+    act = plan["actions"][action]
+    keyed = cd / "reference" / "character-keyed.png"
+    provider = provider or make_video_provider()
+    if not provider.check()["configured"]:
+        raise ForgeError("method_unavailable", f"{action}: method=video needs a connected video provider "
+                         "(see docs/13-video-api-setup.md)", EXIT_PRECONDITION)
+    pr = build_video_prompt(plan, profile, action, extra)
+    rows, cols = (int(x) for x in act["grid"].split("x"))
+    with codex_lock(cd):  # only to allocate the attempt; the clip renders without holding the Codex lock
+        attempt, adir = allocate_attempt(cd / unit / "attempts")
+        fields = {"provider": provider.name, "recovery": [], "extra": (extra or "").strip() or None}
+        mf.update(cd, lambda m: _attempt_entry(m, unit, _kind(plan, action), attempt, generation_status="running", **fields))
+
+    def failed(code, message, status="failed"):
+        mf.update(cd, lambda m: _attempt_entry(m, unit, _kind(plan, action), attempt, generation_status=status))
+        return ForgeError(code, message, EXIT_PROVIDER, {"attempt": attempt, "unit": unit, "status": status})
+
+    try:
+        atomic_write_text(adir / "prompt.txt", pr.text)
+        first = video_sprite.prepare_first_frame(keyed, adir / "first-frame.png", plan["key_color"])
+        pin_last = action == "idle" or not act["loop"]  # idle / one-shot must come back to the first pose
+        res = provider.generate(VideoRequest(pr.text, first, adir / "raw.mp4", last_frame=first if pin_last else None,
+                                             timeout_s=max(timeout, VIDEO_MIN_TIMEOUT)), on_progress)
+        if res.status != "succeeded":
+            raise failed(res.error_code or res.status, res.error_message or "", res.status)
+        frames, fps = video_sprite.extract_frames(res.video_path, adir / ".clip-frames")
+        sheet, info = video_sprite.build_raw_sheet(frames, act["frames"], rows, cols, plan["key_color"], act["loop"])
+    except ForgeError as exc:
+        if "attempt" in exc.extra:
+            raise
+        raise failed(exc.code, exc.message) from None
+    finally:
+        shutil.rmtree(adir / ".clip-frames", ignore_errors=True)
+    atomic_write_png(sheet, adir / "raw.png")
+    meta = {**info, "fps": fps, "pinned_last_frame": pin_last, "provider": res.meta}
+    atomic_write_json(adir / "video-meta.json", meta)
+    atomic_write_json(adir / "generation.json", {
+        "provider": provider.name, "method": "video", "prompt_template_version": pr.template_version,
+        "references": [{"role": "character", "source": "reference/character-keyed.png"}],
+        "raw": {"file": "raw.png", "width": sheet.width, "height": sheet.height, "mode": sheet.mode,
+                "sha256": sha256_file(adir / "raw.png")},
+        "video": {"file": "raw.mp4", "sha256": sha256_file(adir / "raw.mp4"), "first_frame": "first-frame.png", **res.meta}})
+    mf.update(cd, lambda m: _attempt_entry(m, unit, _kind(plan, action), attempt, generation_status="succeeded"))
+    return {"attempt": attempt, "unit": unit, "status": "succeeded"}
+
+
 def generate_unit(cd, plan, profile, action, direction=None, extra=None, recovery=(), timeout=300,
-                  provider=None) -> dict:
+                  provider=None, video_provider=None, on_progress=None) -> dict:
     cd = Path(cd)
     m = mf.load(cd)
     unit, direction, _ = resolve_unit(plan, action, direction)
@@ -121,6 +175,8 @@ def generate_unit(cd, plan, profile, action, direction=None, extra=None, recover
         raise ForgeError("no_reference", "run reference import (or reference generate/select) first", EXIT_PRECONDITION)
     if profile is None:
         raise ForgeError("no_profile", "run identity analyze first", EXIT_PRECONDITION)
+    if plan["actions"][action].get("method", "grid") == "video":
+        return _generate_video_unit(cd, plan, profile, action, unit, extra, timeout, video_provider, on_progress)
     pr = build_prompt(plan, profile, action, direction, extra, recovery)
     provider = provider or CodexCliProvider()
     with tempfile.TemporaryDirectory(prefix="sprite-forge-ref-") as tmp:

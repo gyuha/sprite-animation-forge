@@ -379,3 +379,21 @@ Prompt Generator 단위 테스트는 다음을 보장한다.
 - `frames < rows × cols`면 빈 칸 규칙이 들어간다
 - 복구 코드 `edge_touch`면 margin 문구가 15%가 된다
 - 전체 길이 6,000자 이하
+
+---
+
+## 9. 동영상 방식(`method=video`) 프롬프트
+
+동영상 방식은 격자 시트 프롬프트(§3)를 쓰지 않는다. 동영상 모델은 **첫 프레임 이미지**(키 색 캔버스에 캐릭터를 가운데 약 60% 높이로 배치한 `first-frame.png`)를 움직이므로, 프롬프트에는 동작·반복·배경 규칙만 들어간다. 생성기는 `prompt.build_video_prompt`, 템플릿은 `prompt_templates/video.txt`·`video_loop_line.txt`, 버전은 `video_prompt@1`(`generation.json`의 `prompt_template_version`)이다.
+
+```
+Animate this exact character in place: <title>.
+<motion description (MOTION_LIBRARY 또는 plan의 motion)>
+<loop 줄: 같은 포즈로 끝나는 이음새 없는 반복 | 한 번 수행 후 시작 포즈로 복귀>
+정지 카메라(줌·팬·컷 없음), 캐릭터는 제자리, 키 색 배경은 모든 프레임에서 평평하게 유지, 디자인·색·비율·화풍은 첫 프레임과 동일
+[ADDITIONAL DIRECTION <extra>]
+```
+
+- `idle`과 one-shot 액션은 마지막 프레임도 첫 프레임으로 고정해 요청한다(provider가 지원하는 경우). walk/run 같은 반복 액션은 고정하지 않고 주기 검출로 이음새를 고른다.
+- 방향이 둘 이상인 plan에서는 쓸 수 없다(`invalid_params`): 클립은 첫 프레임이 향한 방향을 바꾸지 못한다.
+- 클립 → `raw.png` 변환 규칙(주기·구간 선택, N프레임 축소, 배경 정규화)은 `video_loop.py`·`video_sprite.py` 모듈 docstring에 있다. 변환 결과 시트는 기존 파이프라인(§5 docs/05)을 그대로 거친다.

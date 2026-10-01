@@ -11,7 +11,7 @@ export { expect }
 export interface Server {
   url: string
   /** (re)starts `uv run sprite-forge-web` on the same port and root; FAKE_CODEX_MODE defaults to success */
-  start(mode?: string): Promise<void>
+  start(mode?: string, env?: Record<string, string>): Promise<void>
   /** SIGKILL of the server, its process group and every descendant (fake codex children) (a crash, no graceful shutdown) */
   kill(): Promise<void>
   /** setup / observation helpers that talk to the API directly (never used for the asserted UI flow) */
@@ -86,7 +86,7 @@ export const test = base.extend<{ server: Server }>({
       url,
       api,
       waitJob,
-      async start(mode = 'success') {
+      async start(mode = 'success', extraEnv = {}) {
         child = spawn('uv', ['run', 'sprite-forge-web', '--port', String(port), '--root', root], {
           cwd: REPO_ROOT,
           detached: true, // own process group so kill() also reaches the codex children
@@ -98,6 +98,11 @@ export const test = base.extend<{ server: Server }>({
             FAKE_CODEX_DOCTOR: 'ok',
             FAKE_CODEX_MODE: mode,
             FAKE_CODEX_IMAGE: 'clean',
+            // never pick up the developer's real video credentials; a test opts in with SPRITE_FORGE_VIDEO_PROVIDER=fake
+            XAI_API_KEY: '',
+            SPRITE_FORGE_GROK_AUTH: join(tmp, 'no-grok-auth.json'),
+            SPRITE_FORGE_VIDEO_PROVIDER: '',
+            ...extraEnv,
           },
         })
         await waitUp(url, child)

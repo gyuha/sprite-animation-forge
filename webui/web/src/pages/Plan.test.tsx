@@ -101,6 +101,32 @@ describe('Plan', () => {
     expect(lastBody(fetchMock, 'POST', '/api/characters/hero/plan').set).toContain('idle.method=breathe')
   })
 
+  it('enables the video method once a provider is connected and POSTs it', async () => {
+    const presets = makePresets()
+    presets.methods = { ...presets.methods!, video: { available: true, reason: null } }
+    const fetchMock = mockApi(routes('side', { 'GET /api/presets': presets }))
+    renderPage()
+    await userEvent.click(await screen.findByTestId('action-toggle-walk'))
+    expect(screen.queryByTestId('action-method-video-hint')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByTestId('action-method-walk'))
+    expect(await screen.findByRole('option', { name: '동영상 (API)' })).not.toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(screen.getByRole('option', { name: '동영상 (API)' }))
+    await userEvent.click(screen.getByTestId('plan-save'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(true))
+    expect(lastBody(fetchMock, 'POST', '/api/characters/hero/plan').set).toContain('walk.method=video')
+  })
+
+  it('disables the video method for a multi-direction (topdown) plan with the reason', async () => {
+    const presets = makePresets()
+    presets.methods = { ...presets.methods!, video: { available: true, reason: null } }
+    mockApi(routes('topdown', { 'GET /api/presets': presets }))
+    renderPage()
+    await userEvent.click(await screen.findByTestId('direction-right'))
+    await userEvent.click(screen.getByTestId('direction-down'))
+    await userEvent.click(await screen.findByTestId('action-toggle-walk'))
+    expect(screen.getByTestId('action-method-video-hint')).toHaveTextContent('방향이 하나인 플랜')
+  })
+
   it('warns when a character colour conflicts with the magenta key colour', async () => {
     mockApi(routes('side', { 'GET /api/characters/hero/identity': identity(['#E000E0']) }))
     renderPage()

@@ -24,6 +24,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from sprite_forge import identity
+from sprite_forge import plan as plan_mod
 from sprite_forge import manifest as mf
 from sprite_forge.errors import EXIT_PRECONDITION, ForgeError
 from sprite_forge.generation import MAX_REFERENCE_COUNT
@@ -69,6 +70,21 @@ async def require_codex(request: Request) -> None:
 def require_reference(cd) -> None:
     if mf.load(cd)["reference"] is None or not (cd / "reference" / "character-keyed.png").exists():
         raise ForgeError("no_reference", "run reference import (or reference generate/select) first", EXIT_PRECONDITION)
+
+
+def require_video() -> None:
+    if not plan_mod.video_method_available():
+        raise ForgeError("method_unavailable", "method=video needs a connected video provider "
+                         "(see docs/13-video-api-setup.md)", EXIT_PRECONDITION)
+
+
+async def require_providers(request: Request, plan: dict, actions) -> None:
+    """Codex is needed only by grid/breathe units, the video provider only by video units."""
+    methods = {plan["actions"][a].get("method", "grid") for a in actions}
+    if methods & {"grid", "breathe"}:
+        await require_codex(request)
+    if "video" in methods:
+        require_video()
 
 
 def require_profile(cd) -> dict:
@@ -125,7 +141,7 @@ async def generate_action(request: Request, cid: str, action: str, body: PromptR
         if role != "character" and not (cd / role.split(":", 1)[1] / "frames" / "000.png").exists():
             raise ForgeError("no_direction_reference", f"accept {role.split(':', 1)[1]} first (it is the direction reference)",
                              EXIT_PRECONDITION)
-    await require_codex(request)
+    await require_providers(request, plan, [action])
     job = request.app.state.jobs.submit(
         "action_generate", cid, job_tasks.action_generate(cd, action, d if len(plan["directions"]) > 1 else None,
                                                           body.extra, body.recovery),
@@ -146,7 +162,7 @@ async def generate_all(request: Request, cid: str, body: GenerateAllRequest | No
     todo = job_tasks.batch_units(plan, body.actions, accepted)
     if not todo:
         raise ApiError(400, "nothing_to_generate", "no unit left to generate")
-    await require_codex(request)
+    await require_providers(request, plan, {u["action"] for u in todo})
     job = request.app.state.jobs.submit(
         "batch_generate", cid, job_tasks.batch_generate(cd, todo, body.auto_accept, body.max_regenerations),
         expected_s=len(todo) * SECONDS_PER_CALL, progress=Progress(done=0, total=len(todo)))

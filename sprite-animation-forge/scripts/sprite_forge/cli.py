@@ -221,7 +221,7 @@ def cmd_generate(args):
     cd = _cid(args)
     mf.load(cd)
     return generation.generate_unit(cd, load_plan(cd), identity.load_profile(cd), _action(args), args.direction,
-                                    args.extra, args.recovery, args.timeout)
+                                    args.extra, args.recovery, args.timeout)  # method=video: video provider from env
 
 
 

@@ -276,6 +276,9 @@ def build_plan(
             notes.append("비대칭일 수 있습니다. 좌측면을 별도 생성할까요? (--no-mirror)")
 
     built = {name: _build_action(name, overrides.get(name, {})) for name in actions}
+    if len(dirs) > 1 and any(a.get("method") == "video" for a in built.values()):
+        raise ForgeError("invalid_params", "method=video supports single-direction plans only "
+                         "(a clip cannot turn the character to another direction)")
     for name, act in built.items():
         sub = act.get("directions")
         if sub is None:

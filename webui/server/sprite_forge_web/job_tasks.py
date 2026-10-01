@@ -42,7 +42,8 @@ def generate_and_process(ctx: JobContext, cd: Path, plan: dict, profile: dict, a
                          extra: str | None, recovery: list[str]) -> tuple[str, dict]:
     """Generate one attempt, then process + QC it. Returns ``(attempt, qc)``."""
     out = generation.generate_unit(cd, plan, profile, action, direction, extra, recovery, codex_timeout(),
-                                   provider=ctx.provider)
+                                   provider=ctx.provider, video_provider=ctx.video_provider,
+                                   on_progress=ctx._provider_event)
     aid = out["attempt"]
     ctx.attempt(aid)
     ctx.stage("processing")

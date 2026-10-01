@@ -93,6 +93,8 @@ function ActionRow({ name, draft, presets, onToggle, onEdit }: {
   const on = draft.actions.includes(name)
   const v = actionValues(name, draft, presets)
   const methods = presets.methods ?? { grid: { available: true, reason: null }, breathe: { available: true, reason: null }, video: { available: false, reason: '동영상 API가 연결되지 않았습니다' } }
+  const videoReason = !methods.video.available ? methods.video.reason
+    : draft.directions.length > 1 ? '동영상 방식은 방향이 하나인 플랜에서만 쓸 수 있습니다' : null
   const changeMethod = (method: GenerationMethod) =>
     onEdit(method === 'breathe' ? { method, frames: BREATHE_FRAMES, grid: '1x1' }
       : { method, frames: presets.frame_presets[name]?.frames ?? v.frames, grid: presets.frame_presets[name]?.grid ?? v.grid })
@@ -125,11 +127,11 @@ function ActionRow({ name, draft, presets, onToggle, onEdit }: {
               <SelectContent>
                 <SelectItem value="grid">격자 (기본)</SelectItem>
                 <SelectItem value="breathe">호흡 (정지 1장)</SelectItem>
-                <SelectItem value="video" disabled={!methods.video.available}>동영상 (API)</SelectItem>
+                <SelectItem value="video" disabled={!!videoReason}>동영상 (API)</SelectItem>
               </SelectContent>
             </Select>
-            {!methods.video.available && (
-              <p className="text-xs text-muted-foreground" data-testid={`action-method-video-hint`}>동영상: {methods.video.reason}</p>
+            {videoReason && (
+              <p className="text-xs text-muted-foreground" data-testid={`action-method-video-hint`}>동영상: {videoReason}</p>
             )}
           </div>
           <div className="space-y-1.5">

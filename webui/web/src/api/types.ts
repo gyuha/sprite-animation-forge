@@ -533,6 +533,8 @@ export interface components {
             raw: string | null;
             /** Sheet */
             sheet: string | null;
+            /** Video */
+            video?: string | null;
         };
         /** AttemptList */
         AttemptList: {

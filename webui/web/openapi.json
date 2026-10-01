@@ -190,6 +190,17 @@
               }
             ],
             "title": "Sheet"
+          },
+          "video": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video"
           }
         },
         "required": [

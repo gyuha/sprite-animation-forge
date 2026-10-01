@@ -33,6 +33,7 @@ from pydantic import BaseModel
 from sprite_forge.errors import ForgeError
 from sprite_forge.fsutil import utc_now
 from sprite_forge.providers import CodexCliProvider, GenerationResult
+from sprite_forge.providers.video_factory import make_video_provider
 
 from .errors import ApiError
 from .sse import EventBus
@@ -45,7 +46,8 @@ MAX_FINISHED = 200
 TICK_S = 5.0  # elapsed_s refresh event for running jobs
 CANCEL_WAIT_S = 8.0  # SIGTERM -> SIGKILL grace (5s) + slack
 MESSAGES = {"queued": "대기 중", "starting": "Codex 시작 중", "session": "세션 생성됨", "generating": "이미지 생성 중",
-            "collecting": "결과 수집 중", "processing": "후처리 중", "qc": "품질 검사 중"}
+            "collecting": "결과 수집 중", "processing": "후처리 중", "qc": "품질 검사 중",
+            "submitting": "동영상 요청 중", "polling": "동영상 생성 중", "downloading": "동영상 내려받는 중"}
 
 
 class JobError(BaseModel):
@@ -124,6 +126,7 @@ class _JobProvider:
 
     def cancel(self) -> None:
         self.inner.cancel()
+        self.ctx.cancel_video()
 
 
 class JobContext:
@@ -133,6 +136,18 @@ class JobContext:
         self._mgr, self._task = mgr, task
         self.provider = _JobProvider(mgr.provider_factory(), self)
         task.provider = self.provider
+        self._video = None
+
+    @property
+    def video_provider(self):
+        """The video provider (``method=video`` units), created on first use so image-only jobs never touch it."""
+        if self._video is None:
+            self._video = self._mgr.video_provider_factory()
+        return self._video
+
+    def cancel_video(self) -> None:
+        if self._video is not None:
+            self._video.cancel()
 
     @property
     def canceled(self) -> bool:
@@ -175,9 +190,11 @@ def error_from(exc: BaseException) -> JobError:
 
 
 class JobManager:
-    def __init__(self, bus: EventBus | None = None, provider_factory: Callable[[], Any] | None = None):
+    def __init__(self, bus: EventBus | None = None, provider_factory: Callable[[], Any] | None = None,
+                 video_provider_factory: Callable[[], Any] | None = None):
         self.bus = bus or EventBus()
         self.provider_factory = provider_factory or CodexCliProvider
+        self.video_provider_factory = video_provider_factory or make_video_provider
         self.loop: asyncio.AbstractEventLoop | None = None
         self._tasks: dict[str, _Task] = {}
         self._pending: list[_Task] = []
