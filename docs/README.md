@@ -45,7 +45,7 @@ README → 01 architecture → 03 codex-image-provider → 08 data-model → (�
 |---|---|---|
 | 이미지 생성 | `codex exec`를 subprocess로 호출, 결과는 `$CODEX_HOME/generated_images/<thread_id>/`에서 수집 | 03 |
 | 공용 코어 | Skill 스크립트와 Web UI 서버가 같은 Python 패키지 `sprite_forge`를 사용 | 01 |
-| Web UI 스택 | FastAPI(Python) + React/Vite/TypeScript, `127.0.0.1` 전용 | 01, 09, 10 |
+| Web UI 스택 | FastAPI(Python) + React/Vite/TypeScript + shadcn/ui, `127.0.0.1` 전용 | 01, 09, 10 |
 | 저장소 | DB 없음. 파일 시스템(`sprites/<character>/`)이 유일한 상태 저장소 | 08 |
 | Grid 표기 | `RxC` = 행(rows) × 열(cols). `2x3` = 2행 3열 | 02, 05 |
 | 크로마키 | 요청 색(#FF00FF)이 아니라 **테두리에서 샘플링한 실제 배경색** 기준으로 키잉 | 05 |

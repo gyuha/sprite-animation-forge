@@ -166,6 +166,7 @@ class ImageProvider(Protocol):
 | 프론트엔드 | React + Vite + TypeScript | 캔버스 기반 애니메이션 플레이어, 상태가 많은 스튜디오 화면 |
 | 서버 상태 관리(FE) | TanStack Query | 폴링/캐시/무효화 |
 | 스타일 | Tailwind CSS | 별도 디자인 시스템 없이 빠른 구성 |
+| UI 컴포넌트 | shadcn/ui (Radix + Tailwind) | 소스를 저장소에 복사하는 방식이라 버전 고정·수정이 쉽고, 필요한 컴포넌트만 `shadcn add`로 설치. [09](09-web-ui.md) §9.5 |
 | 패키지 관리 | `uv`(Python), `pnpm`(Node) | lockfile로 버전 고정 → 결정성(§31) 보장 |
 | 테스트 | pytest, httpx(TestClient), Vitest, Playwright(스모크) | [11](11-testing.md) |
 | 이미지 생성 | Codex CLI ≥ 0.159 (검증 버전 0.159.2) | [03](03-codex-image-provider.md) |
@@ -251,6 +252,7 @@ class ImageProvider(Protocol):
 │       └── src/
 │           ├── pages/                     # Dashboard, NewCharacter, Identity, Plan, Studio, Export, Status
 │           ├── components/                # AnimationPlayer, GridOverlay, QcPanel, AttemptStrip, ...
+│           │   └── ui/                    # shadcn/ui 설치 결과
 │           └── api/                       # 타입 정의 + fetch 래퍼
 │
 └── sprites/                               # 기본 출력 루트 (.gitignore)
@@ -322,3 +324,4 @@ Web UI 서버는 사용자의 Codex 로그인 세션으로 모델을 호출하�
 | ADR-007 | upstream 코드 재사용 없이 재구현 (PRD §37 Option A) | MIT 코드 재사용 | 라이선스 고지 관리 불필요. 개념 호환(§36)만 유지 |
 | ADR-008 | 서버는 `127.0.0.1` 전용 | LAN 공개 옵션 | §9 계정 공유 문제 |
 | ADR-009 | Codex 호출 전역 동시 실행 1개 | 병렬 N개 | rate limit 동작 미검증, 사용량 보호. 스파이크 S-4 결과에 따라 재검토 |
+| ADR-010 | UI 컴포넌트는 shadcn/ui | 직접 구현, MUI·Ant Design 등 패키지형 라이브러리 | Tailwind 기반이라 스택과 일치. 소스 복사 방식이라 lockfile 외 런타임 의존성이 늘지 않고 필요한 것만 설치 |

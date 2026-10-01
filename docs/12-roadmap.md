@@ -77,7 +77,8 @@ Codex 없이 `import-raw`로 넣은 이미지를 처리한다. 가장 큰 작업
 
 ### M5. Web UI 화면 — L
 
-1. 공통: 라우팅, API 클라이언트, SSE 훅, Codex 상태 배지, Job 트레이
+1. 공통: shadcn/ui 초기화([09](09-web-ui.md) §9.4), 라우팅, API 클라이언트, SSE 훅, Codex 상태 배지, Job 트레이 → 검증: `components.json` 생성, `button` 설치 후 타입 체크·빌드 통과
+   - 이후 화면마다 필요한 shadcn 컴포넌트를 `shadcn add`로 설치([09](09-web-ui.md) §9.5)
 2. S1 대시보드, S2 새 캐릭터, S3 Identity, S4 플랜
 3. S5 스튜디오: 애니메이션 플레이어, GridOverlay, QC 패널, 권장 조치, 재처리 패널, attempt 기록
 4. S6 내보내기, S7 상태
@@ -143,6 +144,6 @@ PRD §33–§34 항목과, 이 문서들에서 MVP 밖으로 미룬 항목이다
 |---|---|---|---|
 | 1 | Web UI는 로컬 단일 사용자 도구인가, 팀 공유 서비스인가 | 로컬 단일 사용자(`127.0.0.1`, 인증 없음). 팀 공유는 계정 공유 문제로 제외 | 01 §9, 10 |
 | 2 | 기본 출력 cell 크기 | PRD 기준 128×128. "HD" 언급 시 256×256 | 02 §4, 05, 07 |
-| 3 | 프론트엔드 스택 | React + Vite + TypeScript + TanStack Query + Tailwind | 01 §5, 09 §9 |
+| 3 | 프론트엔드 스택 | React + Vite + TypeScript + TanStack Query + Tailwind + shadcn/ui | 01 §5, 09 §9 |
 | 4 | 대상 Phaser 버전 | Phaser 3 JSON Hash 형식. Phaser 4 호환은 스모크 테스트로 확인 | 07 |
 | 5 | Skill 배포 대상 | Claude Code(`~/.claude/skills/`)와 Codex(`~/.codex/skills/`) 모두 | 02, 01 §7 |

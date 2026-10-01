@@ -344,7 +344,14 @@ flowchart TD
 
 ### 9.1 기술
 
-React + Vite + TypeScript, TanStack Query(서버 상태), React Router(라우팅), Tailwind CSS. 전역 상태 라이브러리는 쓰지 않는다. 서버 상태는 TanStack Query 캐시, 화면 상태는 컴포넌트 로컬 상태로 충분하다.
+React + Vite + TypeScript, TanStack Query(서버 상태), React Router(라우팅), Tailwind CSS, **shadcn/ui**(UI 컴포넌트). 전역 상태 라이브러리는 쓰지 않는다. 서버 상태는 TanStack Query 캐시, 화면 상태는 컴포넌트 로컬 상태로 충분하다.
+
+**UI 컴포넌트 규칙**
+
+- 버튼·입력·탭·다이얼로그 같은 범용 UI 요소는 직접 만들지 않고 shadcn/ui를 쓴다. 필요한 컴포넌트는 그때그때 `shadcn add`로 설치한다(§9.5).
+- shadcn/ui는 npm 의존성이 아니라 소스를 복사해 오는 방식이다. 설치된 파일은 `src/components/ui/`에 들어가고 저장소에 커밋한다. 스타일 조정이 필요하면 이 파일을 고치지 말고 사용하는 쪽에서 `className`으로 덮는다(재설치·업데이트 시 diff를 작게 유지).
+- shadcn/ui에 없는 도메인 컴포넌트(AnimationPlayer, GridOverlay, CompareSlider, DropZone, PaletteEditor)만 `src/components/`에 직접 작성하고, 내부의 버튼·슬라이더·툴팁은 shadcn 컴포넌트를 조합한다.
+- 아이콘은 shadcn 기본 아이콘 라이브러리(`lucide-react`)를 쓴다.
 
 ### 9.2 디렉터리
 
@@ -365,7 +372,10 @@ webui/web/src/
 │   ├── Studio.tsx
 │   ├── Export.tsx
 │   └── Status.tsx
+├── lib/
+│   └── utils.ts             # shadcn `cn()` 헬퍼 (shadcn init이 생성)
 └── components/
+    ├── ui/                  # shadcn/ui 설치 결과 (§9.5). 직접 수정하지 않음
     ├── AnimationPlayer.tsx
     ├── GridOverlay.tsx      # raw 위 경계·bbox·anchor SVG
     ├── CompareSlider.tsx    # 원본/배경제거 비교
@@ -389,7 +399,58 @@ webui/web/src/
 | 채택 응답 | character·plan 상태 쿼리 무효화 |
 | `/api/health` | 60초 간격 폴링 + 창 포커스 시 |
 
-### 9.4 개발·배포
+### 9.4 shadcn/ui 초기 설정
+
+`webui/web`에서 한 번만 실행한다.
+
+```bash
+pnpm dlx shadcn@latest init
+```
+
+- `components.json`의 `aliases`는 `@/components`, `@/components/ui`, `@/lib/utils`로 둔다. 이를 위해 `vite.config.ts`(`resolve.alias`)와 `tsconfig`(`paths`)에 `@` → `src` 별칭을 추가한다.
+- `init`이 Tailwind CSS 변수(테마 토큰)와 `lib/utils.ts`를 만든다. 테마 색은 이 CSS 변수로만 바꾼다.
+- `components.json`과 `src/components/ui/`는 커밋 대상이다.
+
+### 9.5 사용할 shadcn/ui 컴포넌트
+
+화면 명세(§4)에서 필요한 요소를 shadcn 컴포넌트에 대응시킨 표다. M5 해당 화면을 구현할 때 아래 컴포넌트를 설치한다. 표에 없는 컴포넌트가 필요해지면 `shadcn add`로 추가하고 이 표도 갱신한다.
+
+| 컴포넌트 | 용도 | 사용 화면 |
+|---|---|---|
+| `button` | 모든 버튼(생성, 채택, 권장 조치, 복사) | 전체 |
+| `card` | 캐릭터 카드, 상태 카드, 오류 카드 | S1, S5, S7 |
+| `badge` | Codex 상태 배지, QC 요약(통과/검토 필요/실패), 시도 ✓ 배지, 중단됨 | 전체 |
+| `tabs` | S2 탭 A/B, S5 상단 액션 탭, 보기 탭(원본+격자/배경 제거/프레임) | S2, S5 |
+| `input` / `textarea` / `label` | 이름, 설명, 추가 지시(500자), Identity 필드 | S2, S3, S4, S5 |
+| `select` | view, 스타일, 출력 cell, 엔진, 재생성 한도 | S2, S4, S6 |
+| `radio-group` | 번들 선택 | S4 |
+| `checkbox` / `switch` | 액션 선택, 자동 채택, 가장자리 정리 on/off | S4, S5 |
+| `table` | 액션 plan 행, QC 요약 표 | S4, S6 |
+| `collapsible` | 액션 행 펼치기, 고급 설정, 세부 조정, Codex 로그 | S4, S5 |
+| `slider` | 재처리 파라미터, fps, 프레임 이동 | S5 |
+| `toggle-group` | 배율(1x/2x/4x), 배경 선택, 플레이어 오버레이 토글 | S5 |
+| `progress` | 진행률 막대(캐릭터 카드, Job 진행, 배치) | S1, S5 |
+| `dialog` | 프롬프트 보기(읽기 전용 모달) | S5 |
+| `alert-dialog` | fail 채택 확인("그래도 채택할까요?") | S5 |
+| `alert` | Codex 미준비 배너, 키 색 충돌 경고, 누락 액션 경고 | S1, S3, S6 |
+| `popover` | Job 트레이 | 전역 |
+| `tooltip` | QC ID, 복구 코드, 비활성 버튼 사유 | 전체 |
+| `skeleton` | Identity 분석 중 필드 | S3 |
+| `scroll-area` | Job 트레이 목록, 시도 기록, 프레임 스트립 | S5, 전역 |
+| `separator` | 패널 구분 | S5 |
+| `sonner` | 일괄 생성 완료 토스트(Notification 권한 없을 때) | 전역 |
+
+한 번에 설치하는 명령:
+
+```bash
+pnpm dlx shadcn@latest add button card badge tabs input textarea label select \
+  radio-group checkbox switch table collapsible slider toggle-group progress \
+  dialog alert-dialog alert popover tooltip skeleton scroll-area separator sonner
+```
+
+단축키(§4 S5)는 shadcn 컴포넌트가 아니라 페이지 레벨 `keydown` 핸들러로 구현한다. 입력창(`textarea`, `input`)에 포커스가 있을 때는 단축키를 무시한다.
+
+### 9.6 개발·배포
 
 - 개발: `pnpm dev`(Vite, 5173) → `/api`, `/files`를 FastAPI(8765)로 프록시
 - 배포: `pnpm build` 결과(`webui/web/dist`)를 FastAPI가 정적 파일로 서빙. 사용자는 `uv run sprite-forge-web` 하나로 실행하고 `http://127.0.0.1:8765`를 연다
