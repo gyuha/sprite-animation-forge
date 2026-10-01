@@ -1,0 +1,10 @@
+Create a single full-body 2D game character for use as a sprite reference.
+Character: {description}
+{art_style_line}
+{camera_line}
+Neutral standing pose, arms relaxed, any weapon held naturally at the side.
+The character is centered and fills about 75% of the image height, with empty margin on every side.
+Full body visible, nothing cropped.
+Fill the entire background with flat, solid {key_name} {key_hex}. No gradient, floor, or shadow.
+Do not use {key_name} or similar hues anywhere on the character.
+No text. No watermark.

@@ -1,0 +1,80 @@
+# docs/04 4. Section header: [action] frames=N loop=bool title=...; then description line; then numbered poses.
+[idle] frames=4 loop=true title=idle breathing animation
+Idle breathing animation. Subtle motion only; the silhouette barely changes.
+1. neutral stance, weight centered
+2. inhale: chest and shoulders rise very slightly
+3. top of the breath; hair and cloth settle
+4. exhale, returning toward frame 1
+
+[walk] frames=6 loop=true title=walk cycle
+Walk cycle. Arms swing opposite to the legs. Body bobs slightly.
+1. contact: front leg extended, heel touching the ground, back leg behind
+2. down: weight shifts onto the front leg, body at its lowest
+3. passing: back leg passes the supporting leg, body at its highest
+4. contact (opposite leg): other leg now in front, heel touching the ground
+5. down (opposite leg)
+6. passing (opposite leg)
+
+[run] frames=6 loop=true title=run cycle
+Run cycle. Body leans forward about 10-15 degrees. Strong arm swing.
+1. contact: front foot strikes the ground under the body
+2. push-off: back leg drives, body low
+3. flight: both feet off the ground, legs spread
+4. contact (opposite leg)
+5. push-off (opposite leg)
+6. flight (opposite legs)
+
+[attack] frames=6 loop=false title=melee attack
+Melee attack with the {weapon}. Feet stay planted.
+1. ready stance, weapon held
+2. anticipation: wind up, weapon pulled back
+3. swing: weapon moving fast toward the front
+4. impact: weapon fully extended toward the front
+5. follow-through
+6. recovery: returning to the ready stance
+
+[shoot] frames=4 loop=false title=ranged attack
+Ranged attack with the {weapon}. No muzzle flash or projectile in this sheet.
+1. aim
+2. fire: small recoil
+3. recoil recovery
+4. settle back to aim
+
+[cast] frames=6 loop=false title=spell cast
+Spell cast. No large magic effects in this sheet; hands may glow faintly.
+1. ready stance
+2. gather: hands draw in toward the chest
+3. raise: arms lift
+4. channel: peak pose
+5. release: hands thrust forward
+6. recover
+
+[jump] frames=4 loop=false title=jump take-off
+Jump take-off, animated in place.
+1. crouch: anticipation, knees bent
+2. take-off: legs extending, arms swinging up
+3. rising: knees tucked
+4. apex: body stretched, legs slightly bent
+
+[fall] frames=2 loop=true title=falling loop
+Falling while airborne, animated in place.
+1. arms raised, legs slightly bent, cloth fluttering up
+2. same pose, cloth and hair in a different flutter position
+
+[hurt] frames=4 loop=false title=hit reaction
+Hit reaction from the front.
+1. flinch at the moment of the hit
+2. maximum recoil, leaning back
+3. recovering balance
+4. back to a guarded stance
+
+[death] frames=8 loop=false title=death animation
+Death animation, falling backward. The final frame lies on the ground.
+1. hit
+2. stagger backward
+3. knees buckle
+4. falling backward
+5. hitting the ground
+6. small bounce
+7. settling
+8. lying still

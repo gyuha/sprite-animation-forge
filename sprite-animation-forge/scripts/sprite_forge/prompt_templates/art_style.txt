@@ -1,0 +1,7 @@
+[style]
+project_native | Match the art style, line weight, and shading of the reference image exactly.
+auto | Match the art style, line weight, and shading of the reference image exactly.
+pixel_art | Crisp pixel art sprite, limited palette, hard pixel edges, no anti-aliasing, no blur, 1px dark outline.
+retro_pixel | 16-bit SNES-era pixel art sprite, limited palette, hard pixel edges, no anti-aliasing.
+pixel_inspired | Pixel-art inspired 2D sprite, chunky readable shapes, clean edges, simple shading.
+clean_hd | Clean HD 2D game sprite, crisp linework, cel shading, flat colors.

@@ -1,0 +1,5 @@
+CONSISTENCY RULES
+- Identical character scale and camera distance in every cell.
+- The soles of the feet sit on the same horizontal baseline in every cell of a row.
+- Same facing direction ({facing}) in every cell.
+- Full body visible in every cell. Nothing cropped.

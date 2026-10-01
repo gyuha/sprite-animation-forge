@@ -1,0 +1,4 @@
+[loop]
+The last frame must flow seamlessly back into frame 1.
+[oneshot]
+This is a one-shot animation; frame {frames} is the final pose.

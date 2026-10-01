@@ -1,0 +1,7 @@
+GRID RULES
+- {rows} rows x {cols} columns = {cells} equal cells. Frames read left-to-right, top-to-bottom.
+- Exactly one complete character per cell.
+- Leave at least {margin_pct}% empty background margin on every side of every cell.
+- No part of the character, weapon, or effect may cross into another cell.
+- No grid lines, borders, separators, labels, or numbers.
+{empty_cells_line}
