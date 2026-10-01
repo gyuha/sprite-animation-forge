@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "character-scale-profile.json (docs/06 5)",
+  "type": "object",
+  "required": ["schema_version", "character", "reference_action", "reference_attempt", "target_cell", "baseline_y", "body_height", "body_width", "feet_y", "center_x", "norm_scale", "raw_cell_height"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "character": { "type": "string" },
+    "reference_action": { "type": "string" },
+    "reference_attempt": { "type": "string", "pattern": "^\\d{3}$" },
+    "target_cell": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 2, "maxItems": 2 },
+    "baseline_y": { "type": "number" },
+    "body_height": { "type": "number", "exclusiveMinimum": 0 },
+    "body_width": { "type": "number", "exclusiveMinimum": 0 },
+    "feet_y": { "type": "number" },
+    "center_x": { "type": "number" },
+    "norm_scale": { "type": "number", "exclusiveMinimum": 0 },
+    "raw_cell_height": { "type": "integer", "minimum": 1 }
+  }
+}

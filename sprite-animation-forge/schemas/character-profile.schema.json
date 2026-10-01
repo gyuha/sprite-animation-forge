@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "character-profile.json (docs/08 5.2)",
+  "type": "object",
+  "required": ["schema_version", "source", "edited_by_user", "identity"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "source": { "enum": ["empty", "codex-analysis", "manual"] },
+    "edited_by_user": { "type": "boolean" },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["silhouette", "body_ratio", "head_ratio", "hair", "face", "eyes", "clothing", "primary_colors", "secondary_colors", "weapon", "accessories", "outline_style", "shading_style", "camera_angle", "orientation"],
+      "properties": {
+        "silhouette": { "type": "string" },
+        "body_ratio": { "type": "string" },
+        "head_ratio": { "type": "string" },
+        "hair": { "type": "string" },
+        "face": { "type": "string" },
+        "eyes": { "type": "string" },
+        "clothing": { "type": "string" },
+        "primary_colors": { "$ref": "#/$defs/colors" },
+        "secondary_colors": { "$ref": "#/$defs/colors" },
+        "weapon": { "type": "string" },
+        "accessories": { "type": "array", "items": { "type": "string" } },
+        "outline_style": { "type": "string" },
+        "shading_style": { "type": "string" },
+        "camera_angle": { "type": "string" },
+        "orientation": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "colors": { "type": "array", "items": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" } }
+  }
+}

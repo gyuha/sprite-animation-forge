@@ -1,0 +1,11 @@
+[phrase]
+edge_touch | The previous attempt crossed cell borders. Keep a wide empty margin around the character in every cell.
+scale_drift | The previous attempt changed the character size between cells. Draw the character at exactly the same size in every cell; the top of the head and the soles of the feet line up across each row.
+character_small | Keep the body the same size as in the reference image. The weapon may extend toward the cell edge but the body must not shrink.
+fx_in_body | Body and weapon only. No slash trails, motion blur, sparks, magic effects, projectiles, or impact effects.
+empty_frame | Every one of the {frames} used cells must contain the character.
+duplicate_frames | Each frame must show a clearly different pose following the frame sequence.
+bg_mismatch | The background must be one flat solid {key_name} {key_hex} across the whole image.
+identity_drift | The previous attempt drifted from the reference design. Match the reference exactly, especially: {fields}.
+[identity_drift_no_fields]
+The previous attempt drifted from the reference design. Match the reference exactly.

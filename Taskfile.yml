@@ -1,0 +1,115 @@
+version: '3'
+
+vars:
+  FORGE: sprite-animation-forge/scripts/forge.py
+
+tasks:
+  default:
+    desc: 사용 가능한 작업 목록
+    cmds:
+      - task --list
+    silent: true
+
+  sync:
+    desc: 의존성 설치 (uv sync + pnpm install)
+    cmds:
+      - uv sync
+      - task: web:install
+
+  test:
+    desc: Python 전체 테스트 (live 제외, 약 2분)
+    cmds:
+      - uv run pytest -m "not live" -q
+
+  test:quick:
+    desc: 파이프라인·단위 테스트만 빠르게 (CLI subprocess·서버 테스트 제외)
+    cmds:
+      - uv run pytest -q sprite-animation-forge/tests -k "not cli and not scenario and not determinism and not codex_commands"
+
+  test:server:
+    desc: Web API 서버 테스트 (webui/server/tests)
+    cmds:
+      - uv run pytest -q webui/server/tests
+
+  test:scenario:
+    desc: 인수 시나리오 1~6
+    cmds:
+      - uv run pytest -v -k scenario
+
+  test:determinism:
+    desc: 결정성 테스트
+    cmds:
+      - uv run pytest -q -k determinism
+
+  test:live:
+    desc: 실제 Codex 계약 테스트 (사용량 소모, 로그인 필요)
+    prompt: 실제 Codex를 호출하고 ChatGPT 사용량을 소모합니다. 계속할까요?
+    cmds:
+      - uv run pytest -m live -v
+
+  doctor:
+    desc: Codex·Python 의존성 사전 점검
+    cmds:
+      - uv run python {{.FORGE}} doctor
+
+  forge:
+    desc: "forge.py 직접 실행. 예: task forge -- status hero --root ./sprites"
+    cmds:
+      - uv run python {{.FORGE}} {{.CLI_ARGS}}
+
+  web:install:
+    desc: 프런트엔드 의존성 설치 (pnpm install)
+    cmds:
+      - pnpm --dir webui/web install
+
+  web:test:
+    desc: 프런트엔드 단위 테스트 (Vitest)
+    cmds:
+      - pnpm --dir webui/web test
+
+  web:typecheck:
+    desc: 프런트엔드 타입 검사
+    cmds:
+      - pnpm --dir webui/web typecheck
+
+  gen:types:
+    desc: 서버 OpenAPI에서 webui/web/src/api/types.ts 생성
+    cmds:
+      - pnpm --dir webui/web gen:types
+
+  build:
+    desc: 프런트엔드 빌드 (webui/web/dist, 서버가 정적 서빙)
+    cmds:
+      - pnpm --dir webui/web build
+
+  dev:server:
+    desc: FastAPI 서버만 실행 (127.0.0.1:8765)
+    cmds:
+      - uv run sprite-forge-web
+
+  dev:web:
+    desc: Vite 개발 서버만 실행 (0.0.0.0:5273 고정, LAN 접속 가능, /api·/files는 8765로 프록시)
+    cmds:
+      - pnpm --dir webui/web dev --host 0.0.0.0 --port 5273 --strictPort
+
+  dev:
+    desc: 서버(8765) + Vite(5273) 동시 실행 → http://localhost:5273, Ctrl-C로 둘 다 종료
+    deps: [dev:server, dev:web]
+
+  e2e:
+    desc: Playwright E2E 스모크 (가짜 codex, 프로덕션 빌드를 서버가 서빙; 먼저 빌드)
+    cmds:
+      - pnpm --dir webui/web e2e
+
+  start:
+    desc: 프로덕션 빌드 후 단일 서버 실행 (http://127.0.0.1:8765)
+    cmds:
+      - task: build
+      - uv run sprite-forge-web
+
+  test:all:
+    desc: Python 전체(live 제외) + 프런트엔드 단위 + E2E
+    cmds:
+      - task: test
+      - task: web:test
+      - task: e2e

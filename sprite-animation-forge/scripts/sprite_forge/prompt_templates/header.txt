@@ -1,0 +1,1 @@
+Create a {rows}x{cols} sprite animation grid of a 2D game character: {action_title}, {frames} frames.

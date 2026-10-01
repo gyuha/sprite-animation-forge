@@ -1,0 +1,7 @@
+[intro]
+Same character as the attached reference image (Image 1). Preserve exactly:
+[intro_empty]
+Same character as the attached reference image (Image 1). Preserve its design exactly.
+[outro]
+Only pose, limb position, body lean, facial expression, weapon motion and secondary motion (hair, cloth) may change.
+Do not redesign, add, or remove any part of the character.

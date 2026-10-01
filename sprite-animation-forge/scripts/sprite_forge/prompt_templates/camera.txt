@@ -1,0 +1,19 @@
+# [view]: docs/04 3.4 table, used when the plan has one direction equal to the view default.
+[view]
+side | Strict side view (profile), character facing right. Orthographic, no perspective.
+topdown | Top-down RPG view from about 45 degrees above, character facing down toward the viewer.
+3/4 | Three-quarter view, character facing down-right.
+front | Front view, character facing the viewer.
+rear | Rear view, character facing away from the viewer.
+# [prefix] + [direction]: used for multi-direction plans (and single non-default directions).
+[prefix]
+side | Strict side view, orthographic, no perspective;
+topdown | Top-down RPG view from about 45 degrees above,
+3/4 | Three-quarter view,
+front | Front view,
+rear | Rear view,
+[direction]
+down | character facing down toward the viewer. The front of the body, face and chest are visible.
+up | character facing up, away from the viewer. Only the back of the head, back, and rear of the clothing are visible; the face is not visible.
+right | character facing right, profile. Only the right side of the body is visible.
+left | character facing left, profile. Only the left side of the body is visible.

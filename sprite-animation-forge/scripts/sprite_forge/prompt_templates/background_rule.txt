@@ -1,0 +1,4 @@
+BACKGROUND RULE
+- Fill the entire background with flat, solid {key_name} {key_hex}.
+- No gradient, texture, vignette, floor, ground line, drop shadow, or cast shadow.
+- Do not use {key_name} or similar hues anywhere on the character.

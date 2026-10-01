@@ -1,0 +1,6 @@
+[loop]
+{frames} evenly spaced poses covering one full {action} cycle.
+[oneshot]
+{frames} evenly spaced poses from {start_pose} to {end_pose}.
+[oneshot_custom]
+{frames} evenly spaced poses from the start pose to the end pose of the motion.

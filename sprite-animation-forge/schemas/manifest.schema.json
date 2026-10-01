@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "manifest.json (docs/08 5.7)",
+  "type": "object",
+  "required": ["schema_version", "character", "created_at", "updated_at", "tool", "reference", "assumptions", "actions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "character": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,39}$" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "tool": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": { "name": { "type": "string" }, "version": { "type": "string" } }
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "view": { "enum": ["side", "topdown", "3/4", "front", "rear"] },
+        "art_style": { "type": "string" },
+        "asset_type": { "type": "string" }
+      }
+    },
+    "reference": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["mode", "source", "source_sha256", "selected_attempt"],
+          "properties": {
+            "mode": { "enum": ["attached_image", "local_file", "generated_image"] },
+            "source": { "type": "string" },
+            "source_sha256": { "type": "string" },
+            "selected_attempt": { "type": ["string", "null"] }
+          }
+        }
+      ]
+    },
+    "assumptions": { "type": "array", "items": { "type": "string" } },
+    "actions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": { "enum": ["body", "fx"] },
+          "accepted_attempt": { "type": ["string", "null"] },
+          "forced": { "type": "boolean" },
+          "mirror_of": { "type": "string" },
+          "attempts": {
+            "type": "object",
+            "propertyNames": { "pattern": "^\\d{3}$" },
+            "additionalProperties": {
+              "type": "object",
+              "required": ["provider", "generation_status", "qc_status", "score", "recovery"],
+              "properties": {
+                "created_at": { "type": "string" },
+                "provider": { "enum": ["codex-cli", "manual", "mirror"] },
+                "generation_status": { "enum": ["running", "succeeded", "failed", "timeout", "canceled", "interrupted"] },
+                "qc_status": { "enum": ["pass", "warn", "fail", null] },
+                "score": { "type": ["integer", "null"] },
+                "recovery": { "type": "array", "items": { "type": "string" } },
+                "extra": {}
+              }
+            }
+          }
+        },
+        "anyOf": [{ "required": ["attempts"] }, { "required": ["mirror_of"] }]
+      }
+    },
+    "exports": { "type": "object" },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "codex_calls": { "type": "integer" },
+        "input_tokens": { "type": "integer" },
+        "cached_input_tokens": { "type": "integer" },
+        "output_tokens": { "type": "integer" }
+      }
+    }
+  }
+}

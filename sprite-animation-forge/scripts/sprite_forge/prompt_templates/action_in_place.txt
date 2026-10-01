@@ -1,0 +1,1 @@
+Animate in place: the character does not travel across the cell.

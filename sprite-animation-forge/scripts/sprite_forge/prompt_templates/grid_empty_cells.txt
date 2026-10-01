@@ -1,0 +1,1 @@
+- Use only the first {frames} cells. Leave the last {empty_cells} cell(s) completely empty (background only).
