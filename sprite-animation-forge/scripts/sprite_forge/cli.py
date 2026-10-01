@@ -32,6 +32,7 @@ from pathlib import Path
 from . import __version__, generation, identity, workflow
 from . import manifest as mf
 from .doctor import run_doctor
+from .export import export_character
 from .errors import EXIT_INVALID, ForgeError
 from .plan import (
     BUNDLE_VIEW,
@@ -268,6 +269,19 @@ def cmd_status(args):
 def cmd_doctor(args):
     """Check codex install / login / image feature and Python dependencies (always exit 0)"""
     return run_doctor()
+
+
+def _export_args(p):
+    p.add_argument("cid")
+    p.add_argument("--engine", choices=("phaser",), default="phaser")
+
+
+@command("export", args=_export_args)
+def cmd_export(args):
+    """Build atlas/, animations.json, preview/*.gif and the character qc-report.json from accepted units"""
+    cd = _cid(args)
+    mf.load(cd)
+    return export_character(cd, args.engine)
 
 
 def _ref_generate_args(p):
