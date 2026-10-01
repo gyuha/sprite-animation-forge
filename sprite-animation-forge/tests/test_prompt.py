@@ -289,6 +289,7 @@ def test_prompt_fx_action_warns():
 # ---------------------------------------------------------------- recovery
 
 RECOVERY_PHRASES = {
+    "loop_closure": "The last frame must lead smoothly back into the first frame: draw the pose in the last cell as the step just before the first cell's pose, so the animation loops without a jump.",
     "edge_touch": "The previous attempt crossed cell borders. Keep a wide empty margin around the character in every cell.",
     "scale_drift": "The previous attempt changed the character size between cells. Draw the character at exactly the same size in every cell; the top of the head and the soles of the feet line up across each row.",
     "character_small": "Keep the body the same size as in the reference image. The weapon may extend toward the cell edge but the body must not shrink.",

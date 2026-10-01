@@ -56,6 +56,7 @@ from PIL import Image
 
 from .pipeline.measure import ALPHA_THRESHOLD, measure_frame
 from .pipeline.process import ProcessResult
+from . import qc_motion
 from .pipeline.scale import ScaleProfile
 
 SCHEMA_VERSION = 1
@@ -68,6 +69,12 @@ QC05_FAIL = 0.005
 QC06_MAX_DISTANCE = 2
 QC07_FAIL, QC07_WARN_LOW, QC07_WARN_HIGH = 0.85, 0.92, 1.20
 QC09_WARN = 60
+QC10_WARN, QC10_FAIL = 2.0, 3.5      # loop seam ratio (docs: motion quality, sprite-gen gate 2.0)
+QC11_WARN, QC11_FAIL = 0.55, 0.35     # min adjacent silhouette IoU (locomotion); calibrated on sprites/green walk 0.72-0.93
+QC11_WARN_ONLY = 0.30                 # action/airborne: big pose changes are normal, only a near-teleport warns
+QC12_WARN, QC12_FAIL = 0.80, 0.60     # min palette intersection
+QC13_WARN = 0.008                     # motion spread below this = (nearly) static; warn only (QC-06 already flags copies,
+                                      # and a deliberately subtle motion must not block adoption)
 
 PROFILE_BY_ACTION = {
     "idle": "locomotion", "walk": "locomotion", "run": "locomotion",
@@ -81,14 +88,19 @@ LOOP_ACTIONS = ("idle", "walk", "run", "fall")
 # docs/06 section 3. Modes: apply | warn_only (QC-02 action) | info (QC-04 action, QC-06 idle) | skip.
 _ALL = {"QC-01": "apply", "QC-05": "apply", "QC-06": "apply", "QC-09": "apply"}
 MATRIX = {
-    "locomotion": {**_ALL, "QC-02": "apply", "QC-03": "apply", "QC-04": "apply", "QC-07": "apply"},
-    "action": {**_ALL, "QC-02": "warn_only", "QC-03": "apply", "QC-04": "info", "QC-07": "apply"},
-    "airborne": {**_ALL, "QC-02": "skip", "QC-03": "apply", "QC-04": "apply", "QC-07": "skip"},
-    "terminal": {**_ALL, "QC-02": "skip", "QC-03": "skip", "QC-04": "skip", "QC-07": "skip"},
-    "fx": {**_ALL, "QC-02": "skip", "QC-03": "skip", "QC-04": "skip", "QC-07": "skip"},
+    "locomotion": {**_ALL, "QC-02": "apply", "QC-03": "apply", "QC-04": "apply", "QC-07": "apply",
+                   "QC-10": "apply", "QC-11": "apply", "QC-12": "apply", "QC-13": "apply"},
+    "action": {**_ALL, "QC-02": "warn_only", "QC-03": "apply", "QC-04": "info", "QC-07": "apply",
+               "QC-10": "apply", "QC-11": "warn_only", "QC-12": "apply", "QC-13": "apply"},
+    "airborne": {**_ALL, "QC-02": "skip", "QC-03": "apply", "QC-04": "apply", "QC-07": "skip",
+                 "QC-10": "apply", "QC-11": "warn_only", "QC-12": "apply", "QC-13": "apply"},
+    "terminal": {**_ALL, "QC-02": "skip", "QC-03": "skip", "QC-04": "skip", "QC-07": "skip",
+                 "QC-10": "skip", "QC-11": "info", "QC-12": "apply", "QC-13": "apply"},
+    "fx": {**_ALL, "QC-02": "skip", "QC-03": "skip", "QC-04": "skip", "QC-07": "skip",
+           "QC-10": "skip", "QC-11": "skip", "QC-12": "skip", "QC-13": "skip"},
 }
 # idle is the scale reference, so QC-07 does not apply to it
-ACTION_OVERRIDES = {"idle": {"QC-07": "skip", "QC-06": "info"}}
+ACTION_OVERRIDES = {"idle": {"QC-07": "skip", "QC-06": "info", "QC-13": "info"}}
 
 
 def applicability(action: str, qc_profile: str | None = None) -> dict[str, str]:
@@ -240,6 +252,59 @@ def qc07(heights, profile) -> dict:
             "limit": {"fail": QC07_FAIL, "warn": [QC07_WARN_LOW, QC07_WARN_HIGH]}}
 
 
+def qc10_grade(ratio: float) -> str:
+    return _grade_high(ratio, QC10_WARN, QC10_FAIL)
+
+
+def _grade_low(value: float, warn: float, fail: float) -> str:
+    """Lower is worse; strictly below the limit trips it."""
+    return "fail" if value < fail else "warn" if value < warn else "pass"
+
+
+def qc11_grade(similarity: float) -> str:
+    return _grade_low(similarity, QC11_WARN, QC11_FAIL)
+
+
+def qc12_grade(intersection: float) -> str:
+    return _grade_low(intersection, QC12_WARN, QC12_FAIL)
+
+
+def qc13_grade(spread: float) -> str:
+    return "warn" if spread < QC13_WARN else "pass"
+
+
+def qc10(frames, loop: bool) -> dict:
+    if not loop:
+        return _skipped("QC-10", "not_loop")
+    ratio = qc_motion.seam_ratio(frames)
+    if ratio is None:  # fewer than 3 frames, or nothing moves (QC-13 reports that)
+        return {"id": "QC-10", "grade": "pass", "value": None, "limit": {"warn": QC10_WARN, "fail": QC10_FAIL}}
+    return {"id": "QC-10", "grade": qc10_grade(ratio), "value": _r(ratio, 3), "limit": {"warn": QC10_WARN, "fail": QC10_FAIL}}
+
+
+def qc11(frames, mode: str) -> dict:
+    value = qc_motion.silhouette_similarity(frames)
+    if mode == "warn_only":
+        return {"id": "QC-11", "grade": "warn" if value < QC11_WARN_ONLY else "pass", "value": _r(value, 3),
+                "limit": {"warn": QC11_WARN_ONLY}}
+    if mode == "info":
+        return {"id": "QC-11", "grade": "info", "value": _r(value, 3)}
+    return {"id": "QC-11", "grade": qc11_grade(value), "value": _r(value, 3), "limit": {"warn": QC11_WARN, "fail": QC11_FAIL}}
+
+
+def qc12(frames) -> dict:
+    value = qc_motion.palette_intersection(frames)
+    return {"id": "QC-12", "grade": qc12_grade(value), "value": _r(value, 3), "limit": {"warn": QC12_WARN, "fail": QC12_FAIL}}
+
+
+def qc13(frames, mode: str) -> dict:
+    value = qc_motion.motion_spread(frames)
+    grade = qc13_grade(value) if len(frames) > 2 else "pass"
+    if mode == "info":
+        grade = "info" if grade != "pass" else "pass"
+    return {"id": "QC-13", "grade": grade, "value": _r(value, 4), "limit": {"warn": QC13_WARN}}
+
+
 def qc09(bg_distance) -> dict:
     if bg_distance is None:
         return _skipped("QC-09", "no_background")
@@ -285,6 +350,9 @@ def run_qc(process_result_or_data, frames=None, action="walk", params=None, prof
     xs = [getattr(m, x_key) for m in present]
     hashes = [dhash(f) for f in frames]
 
+    if data["params"].get("method") == "breathe":  # the breathing idle is subtle by design
+        modes = {**modes, "QC-13": "info"}
+
     def item(qid, compute):
         return _skipped(qid, "not_applicable") if modes[qid] == "skip" else compute(modes[qid])
 
@@ -298,6 +366,10 @@ def run_qc(process_result_or_data, frames=None, action="walk", params=None, prof
         item("QC-07", lambda _: qc07([m.h for m in present], profile)),
         {"id": "QC-08", "grade": "not_run"},
         item("QC-09", lambda _: qc09(derived.get("bg_distance_to_key"))),
+        item("QC-10", lambda _: qc10(frames, loop)),
+        item("QC-11", lambda mode: qc11(frames, mode)),
+        item("QC-12", lambda _: qc12(frames)),
+        item("QC-13", lambda mode: qc13(frames, mode)),
     ]
     by_id = {r["id"]: r for r in results}
 

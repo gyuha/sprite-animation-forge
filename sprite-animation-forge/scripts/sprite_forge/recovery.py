@@ -22,7 +22,8 @@ Recommendation (one JSON object)::
      "reason": str, "qc_id": "QC-xx", "priority": int (1 = do first), "cost": "~2s"|"~90s"|"0s"}
 
 ``code``: regenerate -> a docs/04 section 6 recovery code (``prompt.RECOVERY_CODES``); reprocess ->
-``use_preserve`` | ``use_fit`` | ``align_per_frame`` | ``anchor_bottom`` | ``tighter_merge``; force_accept -> ``forced_accept``.
+``use_preserve`` | ``use_fit`` | ``align_per_frame`` | ``anchor_bottom`` | ``tighter_merge``
+(regenerate codes added for motion QC: ``loop_closure`` (QC-10), ``identity_drift`` (QC-11/12); QC-13 only warns, so it has no recommendation); force_accept -> ``forced_accept``.
 
 Notes on ambiguous spots
 ------------------------
@@ -98,6 +99,11 @@ def _candidates(report: dict, data: dict, params) -> list[dict]:
             out.append(_regen("edge_touch", "output frame touches the cell edge", "QC-01"))
     if failed("QC-02"):
         out.append(_regen("scale_drift", "character size changes between frames; reprocessing keeps the ratio", "QC-02"))
+    if failed("QC-10"):
+        out.append(_regen("loop_closure", "the last frame does not lead back into the first frame (loop seam)", "QC-10"))
+    drift = [q for q in ("QC-11", "QC-12") if failed(q)]
+    if drift:
+        out.append(_regen("identity_drift", "silhouette or colours jump between frames; match the reference exactly", drift[0]))
     if failed("QC-03"):
         if data.get("params", {}).get("align") == "register":
             out.append(_reproc("align_per_frame", {"align": "per_frame"}, "pin every frame's feet to the baseline instead of sharing one placement", "QC-03"))

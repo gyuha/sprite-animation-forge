@@ -20,6 +20,8 @@ Identity analysis (docs/03 section 9): when `--output-schema <file>` is in argv 
 JSON) no image is generated and the stdin PROMPT markers are not required; the fake writes an `identity`
 object (character-profile.llm schema) to the `-o` file. Modes: success (valid), invalid_json (not JSON),
 bad_schema (field `hair` missing); exit_1 and hang behave as for image generation.
+Vision review: when the schema file has a `limbs` property the reply is a vision-review object instead
+(overall "pass", or "warn" when FAKE_CODEX_REVIEW=warn); the same modes apply (invalid_json, bad_schema = `loop` missing).
 
 Exit codes: 2 on any argv/stdin contract violation, 1 for exit_1 mode, else 0.
 """
@@ -179,9 +181,19 @@ def main():
             json.loads(Path(opts["--output-schema"]).read_text())
         except (OSError, ValueError) as e:
             die(f"--output-schema file unreadable: {e}")
-        reply = dict(IDENTITY)
-        if mode == "bad_schema":
-            del reply["hair"]
+        schema = json.loads(Path(opts["--output-schema"]).read_text())
+        if "limbs" in schema.get("properties", {}):
+            warn = os.environ.get("FAKE_CODEX_REVIEW") == "warn"
+            ok = {"ok": True, "note": "reads as a clean cycle"}
+            reply = {"loop": ok, "limbs": {"ok": not warn, "note": "legs overlap in frame 3" if warn else "alternate steadily"},
+                     "identity": ok, "overall": "warn" if warn else "pass",
+                     "summary": "Check the leg overlap in frame 3." if warn else "Looks natural and loops cleanly."}
+            if mode == "bad_schema":
+                del reply["loop"]
+        else:
+            reply = dict(IDENTITY)
+            if mode == "bad_schema":
+                del reply["hair"]
         message = "this is not json" if mode == "invalid_json" else json.dumps(reply)
         Path(opts["-o"]).write_text(message)
         emit({"type": "item.completed", "item": {"id": "item_2", "type": "agent_message", "text": message}})

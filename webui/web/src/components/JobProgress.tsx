@@ -8,6 +8,7 @@ const TYPE_LABEL: Record<JobSnapshot['type'], string> = {
   identity_analyze: 'Identity 분석',
   action_generate: '액션 생성',
   batch_generate: '일괄 생성',
+  vision_review: '비전 심사',
 }
 
 const STATE_LABEL: Record<JobSnapshot['state'], string> = {

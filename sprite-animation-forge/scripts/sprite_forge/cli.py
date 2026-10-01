@@ -29,7 +29,7 @@ import sys
 import traceback
 from pathlib import Path
 
-from . import __version__, generation, identity, workflow
+from . import __version__, generation, identity, vision, workflow
 from . import manifest as mf
 from .doctor import run_doctor
 from .export import export_character
@@ -223,6 +223,19 @@ def cmd_generate(args):
     return generation.generate_unit(cd, load_plan(cd), identity.load_profile(cd), _action(args), args.direction,
                                     args.extra, args.recovery, args.timeout)
 
+
+
+def _review_args(p):
+    _unit_args(p, with_attempt=True)
+    p.add_argument("--timeout", type=int, default=300, help="seconds for the Codex call")
+
+
+@command("review", args=_review_args)
+def cmd_review(args):
+    """Ask Codex to review a processed attempt's motion (advisory vision review)"""
+    cd = _cid(args)
+    mf.load(cd)
+    return vision.review_attempt(cd, load_plan(cd), _action(args), args.direction, args.attempt, args.timeout)
 
 
 def _import_raw_args(p):

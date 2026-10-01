@@ -21,6 +21,7 @@
  *   attempt-strip, attempt-<NNN>, attempt-qc-<NNN>, accepted-badge-<NNN>, interrupted-badge-<NNN>   시도 기록
  *   accept-button, accept-confirm, accept-cancel   채택 / QC fail 확인 다이얼로그 버튼
  *   qc-panel, qc-status(data-status), qc-score, qc-item-<QC-ID>(data-grade), qc-id-<QC-ID>
+ *   vision-review-button("비전 심사", Codex 1회, 참고용), vision-review-result, vision-review-overall(data-overall), vision-review-<loop|limbs|identity>(data-ok), vision-review-summary
  *   recommendations, rec-<reprocess|regenerate|force_accept>-<code>   권장 조치 버튼
  *   reprocess-panel, reprocess-toggle, reprocess-<anchor|x_anchor|scale_strategy|components>(select),
  *   reprocess-<t_in|t_out|edge_band_px|merge_gap_px|margin_top|margin_side|margin_bottom>(slider; -value = 현재 값),
@@ -32,7 +33,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Copy, Upload } from 'lucide-react'
 import {
-  useAcceptAttempt, useGenerateAction, usePreviewPrompt, useProcessAttempt, useSaveParams, useUploadRaw, type UnitTarget,
+  useAcceptAttempt, useGenerateAction, usePreviewPrompt, useReviewAttempt, useProcessAttempt, useSaveParams, useUploadRaw, type UnitTarget,
 } from '@/api/mutations'
 import { useAttempt, useAttempts, useCharacter, useHealth, useJobs, usePlan, type Direction } from '@/api/queries'
 import { isActive, type JobSnapshot } from '@/api/sse'
@@ -43,6 +44,7 @@ import { GridOverlay } from '@/components/GridOverlay'
 import { JobFailedCard } from '@/components/JobFailedCard'
 import { JobProgress } from '@/components/JobProgress'
 import { QcPanel } from '@/components/QcPanel'
+import { VisionReviewPanel, type VisionReview } from '@/components/VisionReviewPanel'
 import { ReasonTooltip } from '@/components/ReasonTooltip'
 import { RecommendationButtons } from '@/components/RecommendationButtons'
 import { ReprocessPanel } from '@/components/ReprocessPanel'
@@ -101,6 +103,7 @@ export default function Studio() {
   const unitJobs = ((jobs.data ?? []) as JobSnapshot[]).filter((j) => j.character === cid && j.type === 'action_generate')
   const generating = (a: string, d?: Direction) => unitJobs.some((j) => isActive(j) && j.action === a && (!d || j.direction === d))
   const rowOf = (a: string, d?: Direction) => rows.find((r) => r.unit === unitKey(a, d))
+  const reviewJobs = ((jobs.data ?? []) as JobSnapshot[]).filter((j) => j.character === cid && j.type === 'vision_review' && j.action === action && (j.direction ?? undefined) === dir)
   const thisJobs = unitJobs.filter((j) => j.action === action && (j.direction ?? undefined) === dir)
 
   const goAction = (a: string) => {
@@ -147,6 +150,7 @@ export default function Studio() {
         rows={rows}
         codexReady={health.data?.ready}
         activeJob={thisJobs.find(isActive)}
+        reviewJob={reviewJobs.find(isActive)}
         lastJob={[...thisJobs].sort((a, b) => a.created_at.localeCompare(b.created_at)).at(-1)}
       />
     </div>
@@ -161,11 +165,12 @@ interface WorkspaceProps {
   rows: UnitRow[]
   codexReady?: boolean
   activeJob?: JobSnapshot
+  reviewJob?: JobSnapshot
   lastJob?: JobSnapshot
 }
 
 /** Everything below the tabs for one (action, direction) unit; remounted per unit so its local state starts fresh. */
-function Workspace({ cid, plan, action, direction, rows, codexReady, activeJob, lastJob }: WorkspaceProps) {
+function Workspace({ cid, plan, action, direction, rows, codexReady, activeJob, reviewJob, lastJob }: WorkspaceProps) {
   const target: UnitTarget = { cid, action, direction }
   const act = plan.actions[action]
   const mirrored = isMirrored(plan, action, direction)
@@ -214,6 +219,7 @@ function Workspace({ cid, plan, action, direction, rows, codexReady, activeJob, 
   const saveM = useSaveParams()
   const promptM = usePreviewPrompt()
   const generateM = useGenerateAction()
+  const reviewM = useReviewAttempt()
   const uploadM = useUploadRaw()
 
   const generateReason = generateBlockReason({
@@ -371,6 +377,15 @@ function Workspace({ cid, plan, action, direction, rows, codexReady, activeJob, 
 
       <aside className="space-y-5">
         {qc && <QcPanel qc={qc} />}
+        {qc && selected && !mirrored && (
+          <VisionReviewPanel
+            review={(detail?.vision_review as { review?: VisionReview } | null | undefined)?.review}
+            busy={reviewM.isPending || !!reviewJob}
+            disabledReason={!codexReady ? 'Codex를 사용할 수 없습니다' : null}
+            onRun={() => reviewM.mutate({ ...target, attempt: selected }, { onError: toastError })}
+          />
+        )}
+        {reviewJob && <JobProgress job={reviewJob} />}
         {qc && (
           <RecommendationButtons
             recommendations={qc.recommendations}

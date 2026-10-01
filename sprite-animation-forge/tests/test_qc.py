@@ -286,8 +286,8 @@ def test_qc09_skipped_for_native_alpha():
     ("hurt", set()),
     ("jump", {"QC-02", "QC-07"}),
     ("fall", {"QC-02", "QC-07"}),
-    ("death", {"QC-02", "QC-03", "QC-04", "QC-07"}),
-    ("fx", {"QC-02", "QC-03", "QC-04", "QC-07"}),
+    ("death", {"QC-02", "QC-03", "QC-04", "QC-07", "QC-10"}),
+    ("fx", {"QC-02", "QC-03", "QC-04", "QC-07", "QC-10", "QC-11", "QC-12", "QC-13"}),
 ])
 def test_qc_applicability_matrix(action, skipped):
     m = qc.applicability(action)
@@ -346,7 +346,7 @@ def test_qc_report_structure_matches_doc():
     assert rep["frames"] == 4 and rep["recommendations"] == []
     assert set(rep["checks"]) == {"edge_touch", "scale_variance", "anchor_variance",
                                   "duplicate_frames", "empty_frames"}
-    assert [r["id"] for r in rep["results"]] == [f"QC-0{i}" for i in range(1, 10)]
+    assert [r["id"] for r in rep["results"]] == [f"QC-{i:02d}" for i in range(1, 14)]
     assert next(r for r in rep["results"] if r["id"] == "QC-08")["grade"] == "not_run"
     assert {"index", "bbox_h", "feet_y_strict", "x_metric", "dhash"} == set(rep["per_frame"][0])
     assert rep["status"] in ("pass", "warn", "fail")
@@ -391,9 +391,9 @@ def process(tmp_path, variant, rows=2, cols=3, **params):
 def test_qc_integration_clean_only_duplicates_warn(tmp_path):
     res = process(tmp_path, "clean")
     rep = qc.run_qc(res, action="walk", attempt="001")
-    # the synthetic frames are identical, so QC-06 (duplicates) warns by design; nothing else trips
-    assert [r["id"] for r in rep["results"] if r["grade"] in ("warn", "fail")] == ["QC-06"]
-    assert rep["status"] == "warn" and rep["score"] == 92
+    # the synthetic frames are identical: QC-06 (duplicates) and QC-13 (nothing moves) warn by design; nothing else trips
+    assert [r["id"] for r in rep["results"] if r["grade"] in ("warn", "fail")] == ["QC-06", "QC-13"]
+    assert rep["status"] == "warn" and rep["score"] == 84
 
 
 def test_qc_integration_accepts_process_json_dict(tmp_path):

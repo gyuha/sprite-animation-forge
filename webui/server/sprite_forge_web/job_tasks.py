@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from sprite_forge import generation, identity, workflow
+from sprite_forge import generation, identity, vision, workflow
 from sprite_forge.errors import ForgeError
 from sprite_forge.plan import load_plan, units
 
@@ -63,6 +63,15 @@ def action_generate(cd: Path, action: str, direction: str | None, extra: str | N
     return run
 
 
+def vision_review(cd: Path, action: str, direction: str | None, attempt: str):
+    def run(ctx: JobContext) -> dict:
+        ctx.stage("generating")
+        out = vision.review_attempt(cd, load_plan(cd), action, direction, attempt, codex_timeout(), provider=ctx.provider.inner)
+        return {"attempt": out["attempt"], "review": out["review"]}
+
+    return run
+
+
 def reference_generate(cd: Path, description: str, count: int):
     def run(ctx: JobContext) -> dict:
         ctx.stage("starting")
@@ -91,9 +100,10 @@ def _run_unit(ctx: JobContext, cd: Path, plan: dict, profile: dict, unit: dict, 
     action, direction = unit["action"], unit["direction"] if len(plan["directions"]) > 1 else None
     row = {"unit": unit["unit"], "status": "review", "attempt": None, "qc_status": None}
     regenerations = 0
+    codes: list[str] = []  # regenerate recommendations of the previous failed attempt become recovery phrases
     while True:
         try:
-            aid, qc = generate_and_process(ctx, cd, plan, profile, action, direction, None, [])
+            aid, qc = generate_and_process(ctx, cd, plan, profile, action, direction, None, codes)
             row["attempt"] = aid
             reprocessed = 0
             while qc["status"] == "fail" and reprocessed < MAX_AUTO_REPROCESS and not ctx.canceled:
@@ -118,6 +128,7 @@ def _run_unit(ctx: JobContext, cd: Path, plan: dict, profile: dict, unit: dict, 
         if regenerations >= max_regenerations:
             return row
         regenerations += 1
+        codes = list(dict.fromkeys(r["code"] for r in qc["recommendations"] if r["type"] == "regenerate"))
 
 
 def batch_generate(cd: Path, todo: list[dict], auto_accept: bool, max_regenerations: int):

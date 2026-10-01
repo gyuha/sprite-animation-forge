@@ -17,6 +17,8 @@ Notes on ambiguous spots
 
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
@@ -92,6 +94,21 @@ async def analyze_identity(request: Request, cid: str, body: IdentityAnalyzeRequ
     await require_codex(request)
     job = request.app.state.jobs.submit("identity_analyze", cid, job_tasks.identity_analyze(cd, bool(body and body.force)),
                                         cancelable=False)
+    return JobCreated(job=job)
+
+
+@router.post(BASE + "/attempts/{aid}/review", status_code=202)
+async def review_attempt(request: Request, cid: str, action: str, aid: str,
+                         direction: Direction | None = DirectionQuery) -> JobCreated:
+    cd, plan = load_cd_plan(request, cid)
+    unit, d, _ = resolve(plan, action, direction)
+    if not re.fullmatch(r"\d{3}", aid) or not (cd / unit / "attempts" / aid).is_dir():
+        raise ApiError(404, "not_found", f"{unit} attempt {aid!r} does not exist")
+    if not any((cd / unit / "attempts" / aid / "frames").glob("*.png")):
+        raise ForgeError("not_processed", f"{unit} attempt {aid} has no frames; process it first", EXIT_PRECONDITION)
+    await require_codex(request)
+    job = request.app.state.jobs.submit("vision_review", cid, job_tasks.vision_review(cd, action, d, aid), action=action,
+                                        direction=d, cancelable=False)
     return JobCreated(job=job)
 
 

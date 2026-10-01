@@ -111,6 +111,18 @@
           "unit": {
             "title": "Unit",
             "type": "string"
+          },
+          "vision_review": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vision Review"
           }
         },
         "required": [
@@ -743,7 +755,8 @@
               "reference_generate",
               "identity_analyze",
               "action_generate",
-              "batch_generate"
+              "batch_generate",
+              "vision_review"
             ],
             "title": "Type",
             "type": "string"
@@ -1818,6 +1831,87 @@
           }
         },
         "summary": "Process Attempt"
+      }
+    },
+    "/api/characters/{cid}/actions/{action}/attempts/{aid}/review": {
+      "post": {
+        "operationId": "review_attempt_api_characters__cid__actions__action__attempts__aid__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "title": "Cid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "title": "Action",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "down|up|right|left; required when the plan has 2+ directions",
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "down",
+                    "up",
+                    "right",
+                    "left"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "down|up|right|left; required when the plan has 2+ directions",
+              "title": "Direction"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Attempt"
       }
     },
     "/api/characters/{cid}/actions/{action}/generate": {

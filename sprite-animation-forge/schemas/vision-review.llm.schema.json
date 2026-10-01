@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "vision-review.llm.schema.json: the reviewer's answer (codex --output-schema)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["loop", "limbs", "identity", "overall", "summary"],
+  "properties": {
+    "loop": { "$ref": "#/$defs/check" },
+    "limbs": { "$ref": "#/$defs/check" },
+    "identity": { "$ref": "#/$defs/check" },
+    "overall": { "enum": ["pass", "warn", "fail"] },
+    "summary": { "type": "string" }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "note"],
+      "properties": { "ok": { "type": "boolean" }, "note": { "type": "string" } }
+    }
+  }
+}

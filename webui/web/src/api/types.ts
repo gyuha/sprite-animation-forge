@@ -107,6 +107,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/characters/{cid}/actions/{action}/attempts/{aid}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Attempt */
+        post: operations["review_attempt_api_characters__cid__actions__action__attempts__aid__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/characters/{cid}/actions/{action}/generate": {
         parameters: {
             query?: never;
@@ -499,6 +516,10 @@ export interface components {
             summary: components["schemas"]["AttemptSummary"];
             /** Unit */
             unit: string;
+            /** Vision Review */
+            vision_review?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** AttemptFiles */
         AttemptFiles: {
@@ -702,7 +723,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "reference_generate" | "identity_analyze" | "action_generate" | "batch_generate";
+            type: "reference_generate" | "identity_analyze" | "action_generate" | "batch_generate" | "vision_review";
         };
         /** JobCreated */
         JobCreated: {
@@ -1153,6 +1174,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttemptResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_attempt_api_characters__cid__actions__action__attempts__aid__review_post: {
+        parameters: {
+            query?: {
+                /** @description down|up|right|left; required when the plan has 2+ directions */
+                direction?: ("down" | "up" | "right" | "left") | null;
+            };
+            header?: never;
+            path: {
+                cid: string;
+                action: string;
+                aid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobCreated"];
                 };
             };
             /** @description Validation Error */

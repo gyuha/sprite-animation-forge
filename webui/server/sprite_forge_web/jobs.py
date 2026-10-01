@@ -15,7 +15,7 @@ Notes on ambiguous spots
 * ``interrupted`` as a Job state is used only for a graceful server stop (queued jobs and the running one);
   after a crash the in-memory jobs are gone and attempts are fixed by ``recovery.recover`` instead.
 * Finished jobs are kept in memory (newest 200) so the UI can still read their result/error.
-* ``identity_analyze`` runs a plain ``subprocess.run`` inside Core and cannot be stopped: cancelling it while
+* ``identity_analyze`` and ``vision_review`` run a plain ``subprocess.run`` inside Core and cannot be stopped: cancelling it while
   running answers 409 ``not_cancelable``; queued identity jobs can be cancelled.
 """
 
@@ -37,7 +37,7 @@ from sprite_forge.providers import CodexCliProvider, GenerationResult
 from .errors import ApiError
 from .sse import EventBus
 
-JobType = Literal["reference_generate", "identity_analyze", "action_generate", "batch_generate"]
+JobType = Literal["reference_generate", "identity_analyze", "action_generate", "batch_generate", "vision_review"]
 JobState = Literal["queued", "running", "succeeded", "failed", "canceled", "interrupted"]
 FINISHED = ("succeeded", "failed", "canceled", "interrupted")
 MAX_LOG = 50

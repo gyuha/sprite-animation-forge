@@ -105,6 +105,7 @@ class AttemptDetail(BaseModel):
     generation: dict | None
     process: dict | None
     qc: dict | None
+    vision_review: dict | None = None  # vision-review.json: advisory Codex review of the frames (POST .../review)
     files: AttemptFiles
 
 
@@ -214,6 +215,7 @@ def get_attempt(request: Request, cid: str, action: str, aid: str,
     return AttemptDetail(attempt=aid, unit=unit, accepted=ent.get("accepted_attempt") == aid,
                          summary=_summary(cd, cid, unit, aid, ent), generation=read_json(adir / "generation.json"),
                          process=read_json(adir / "process.json"), qc=read_json(adir / "qc-report.json"),
+                         vision_review=read_json(adir / "vision-review.json"),
                          files=_files(cd, cid, unit, aid))
 
 
