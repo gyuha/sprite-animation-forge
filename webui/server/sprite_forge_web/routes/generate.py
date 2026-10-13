@@ -158,7 +158,7 @@ async def generate_action(request: Request, cid: str, action: str, body: PromptR
     profile = require_profile(cd)
     pr = build_prompt(plan, profile, action, d, body.extra, body.recovery)  # validates recovery codes
     for role in pr.references_needed:
-        if role != "character" and not (cd / role.split(":", 1)[1] / "frames" / "000.png").exists():
+        if role.startswith("direction:") and not (cd / role.split(":", 1)[1] / "frames" / "000.png").exists():
             raise ForgeError("no_direction_reference", f"accept {role.split(':', 1)[1]} first (it is the direction reference)",
                              EXIT_PRECONDITION)
     await require_providers(request, plan, [action])

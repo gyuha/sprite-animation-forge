@@ -1,0 +1,4 @@
+LAYOUT GUIDE
+- The second attached image is a layout guide, not a character: a flat {key_name} {key_hex} square with a thin gray outline marking the safe area ({lo}% to {hi}% of the width and of the height), a dark line {crown}% from the top for the top of the head, and a dark line {floor}% from the top for the feet.
+- Draw the character so the top of the head touches the head line and the feet stand on the feet line, with the whole body inside the safe area and centered horizontally.
+- Never draw the guide's outline, lines or any text in the result.

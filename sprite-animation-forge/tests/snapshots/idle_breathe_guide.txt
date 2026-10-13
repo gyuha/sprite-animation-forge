@@ -1,0 +1,41 @@
+# template_version: still_prompt@1
+Create a 1x1 sprite animation grid of a 2D game character: idle breathing animation still pose, 1 frames.
+
+REFERENCE IDENTITY
+Same character as the attached reference image (Image 1). Preserve its design exactly.
+Only pose, limb position, body lean, facial expression, weapon motion and secondary motion (hair, cloth) may change.
+Do not redesign, add, or remove any part of the character.
+
+Match the art style, line weight, and shading of the reference image exactly.
+
+Strict side view (profile), character facing right. Orthographic, no perspective.
+
+LAYOUT GUIDE
+- The second attached image is a layout guide, not a character: a flat magenta #FF00FF square with a thin gray outline marking the safe area (8% to 92% of the width and of the height), a dark line 16% from the top for the top of the head, and a dark line 84% from the top for the feet.
+- Draw the character so the top of the head touches the head line and the feet stand on the feet line, with the whole body inside the safe area and centered horizontally.
+- Never draw the guide's outline, lines or any text in the result.
+
+ACTION
+A single still pose of the character in a relaxed idle breathing animation stance: arms relaxed, weight evenly on both feet, neutral expression, nothing in motion.
+Draw exactly one pose. Do not draw a sequence, motion lines, or a second copy of the character.
+Keep the character in place.
+
+CONSISTENCY RULES
+- Identical character scale and camera distance in every cell.
+- The soles of the feet sit on the same horizontal baseline in every cell of a row.
+- Same facing direction (right) in every cell.
+- Full body visible in every cell. Nothing cropped.
+
+GRID RULES
+- 1 rows x 1 columns = 1 equal cells. Frames read left-to-right, top-to-bottom.
+- Exactly one complete character per cell.
+- Leave at least 8% empty background margin on every side of every cell.
+- No part of the character, weapon, or effect may cross into another cell.
+- No grid lines, borders, separators, labels, or numbers.
+
+BACKGROUND RULE
+- Fill the entire background with flat, solid magenta #FF00FF.
+- No gradient, texture, vignette, floor, ground line, drop shadow, or cast shadow.
+- Do not use magenta or similar hues anywhere on the character.
+
+No text. No watermark. No UI.

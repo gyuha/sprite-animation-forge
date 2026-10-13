@@ -47,6 +47,7 @@ from PIL import Image
 from . import manifest as mf
 from .errors import EXIT_PRECONDITION, EXIT_PROVIDER, ForgeError
 from .fsutil import allocate_attempt, atomic_write_json, atomic_write_png, atomic_write_text, file_lock, sha256_file
+from .layout_guide import make_layout_guide
 from .plan import resolve_unit
 from .prompt import VIDEO_PROMPT_VERSION, PromptResult, build_canonical_prompt, build_prompt, build_video_prompt
 from .providers import CodexCliProvider, GenerationRequest, VideoRequest
@@ -253,6 +254,12 @@ def generate_unit(cd, plan, profile, action, direction=None, extra=None, recover
         for role in pr.references_needed:
             if role == "character":
                 refs.append(keyed)
+                continue
+            if role == "layout_guide":
+                path = Path(tmp) / "layout-guide.png"
+                make_layout_guide(plan["key_color"], pr.margin_pct).save(path, format="PNG")
+                refs.append(path)
+                labels[str(path)] = "layout-guide"
                 continue
             ref_unit = role.split(":", 1)[1]
             path = direction_reference_image(cd, ref_unit, plan["key_color"], tmp)

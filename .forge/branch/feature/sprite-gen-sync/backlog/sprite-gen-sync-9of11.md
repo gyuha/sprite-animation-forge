@@ -16,6 +16,7 @@
   - RIFE 없는 환경에서 전체 테스트 통과: `env -u SPRITE_FORGE_RIFE_BIN uv run pytest -m "not live" -q` 통과
   - 기준선 가드(회귀 가드 — 사전부터 통과, 의도된 것): `comm -23 .forge/branch/feature/sprite-gen-sync/baseline-tests.txt <(uv run pytest -m "not live" --collect-only -q 2>/dev/null | grep '::' | sort) | wc -l` → 0
   - 매핑 표 갱신: `docs/14-sprite-gen-sync.md`에 이 작업이 반영한 sprite-gen 기능마다 (기능 → 구현 파일 → 테스트 ID) 행 추가, `uv run python sprite-animation-forge/tests/sync_matrix.py` exit 0 (모든 ID 실존·통과)
+  - 테스트 파일명 규칙(체크 C7): 보간기·폴백 `test_sg_rife_interpolator.py` ≥ 4, 유령 검사·재촬영 `test_sg_rife_ghost.py` ≥ 3
   - TDD 진행 (각 슬라이스는 실패 테스트부터)
   - 전체 회귀: `uv run pytest -m "not live" -q` 통과 (사전 baseline: 903 passed / 4 skipped)
 

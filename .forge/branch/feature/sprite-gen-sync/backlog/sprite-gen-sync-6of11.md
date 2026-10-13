@@ -15,6 +15,7 @@
   - `uv run pytest -q -k sg_video` passed ≥ 6 (사전: 0건): 시점별 문구 포함/미포함(측면에 앞/뒷모습 문구 없음)·호출자 motion 보존·캔버스 여유 픽셀 검사(attack 위 여유 ≥ 20% ±2%p, walk 0)·버전 상승·기존 `video_sprite` 테스트 통과
   - 기준선 가드(회귀 가드 — 사전부터 통과, 의도된 것): `comm -23 .forge/branch/feature/sprite-gen-sync/baseline-tests.txt <(uv run pytest -m "not live" --collect-only -q 2>/dev/null | grep '::' | sort) | wc -l` → 0
   - 매핑 표 갱신: `docs/14-sprite-gen-sync.md`에 이 작업이 반영한 sprite-gen 기능마다 (기능 → 구현 파일 → 테스트 ID) 행 추가, `uv run python sprite-animation-forge/tests/sync_matrix.py` exit 0 (모든 ID 실존·통과)
+  - 테스트 파일명 규칙(체크 C6): 이 작업의 테스트는 `test_sg_video_prompt.py` (≥ 4건; `-k "sg_video and video_prompt"`)
   - TDD 진행 (각 슬라이스는 실패 테스트부터)
   - 전체 회귀: `uv run pytest -m "not live" -q` 통과 (사전 baseline: 903 passed / 4 skipped)
 

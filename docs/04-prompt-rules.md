@@ -397,3 +397,13 @@ Animate this exact character in place: <title>.
 - `idle`과 one-shot 액션은 마지막 프레임도 첫 프레임으로 고정해 요청한다(provider가 지원하는 경우). walk/run 같은 반복 액션은 고정하지 않고 주기 검출로 이음새를 고른다.
 - 방향이 둘 이상인 plan에서는 쓸 수 없다(`invalid_params`): 클립은 첫 프레임이 향한 방향을 바꾸지 못한다.
 - 클립 → `raw.png` 변환 규칙(주기·구간 선택, N프레임 축소, 배경 정규화)은 `video_loop.py`·`video_sprite.py` 모듈 docstring에 있다. 변환 결과 시트는 기존 파이프라인(§5 docs/05)을 그대로 거친다.
+
+---
+
+## 10. 레이아웃 가이드와 안전 영역 (정지 1장 생성)
+
+`method=breathe`처럼 **정지 1장**을 만들 때는 두 번째 참조 이미지로 레이아웃 가이드를 붙인다(`layout_guide.make_layout_guide`). 키 색 정사각 캔버스에 (1) 안전 영역 윤곽(가로·세로 `m%`~`100-m%`), (2) 머리 선(위에서 `2m%`), (3) 발 선(위에서 `100-2m%`)을 그린 이미지다. `m`은 프롬프트의 여백 수치와 같다(기본 8, `edge_touch` 복구 시 15). 프롬프트에는 같은 수치를 문장으로 적고(`LAYOUT GUIDE` 블록: "second attached image is a layout guide ... 8% to 92% ... 16% from the top ... 84% from the top"), 가이드의 선과 윤곽을 결과에 그리지 말라고 못 박는다.
+
+- 참조 이미지는 최대 2장이므로 이미 2장이 필요한 정지(다중 방향 플랜의 비대표 방향)에는 가이드를 붙이지 않고 `layout_guide_skipped` 경고를 낸다. 이때 프롬프트는 이전과 바이트 동일하다.
+- 가이드를 붙인 정지 프롬프트의 버전은 `still_prompt@1`, 그 외는 `action_prompt@3`이다(`generation.json`의 `prompt_template_version`). 격자(grid) 프롬프트는 바뀌지 않는다.
+- `generation.json`의 참조에는 `layout-guide`가 기록되고, attempt 폴더의 `ref-02.png`가 그 이미지다.

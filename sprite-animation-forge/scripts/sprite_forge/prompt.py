@@ -15,7 +15,8 @@ Public API
     Raises ``ForgeError`` if the assembled text fails ``validate_prompt``.
 ``PromptResult(text, template_version, references_needed, warnings)``
     ``references_needed``: ordered list of reference roles the caller must attach:
-    ``"character"`` (Image 1, the keyed reference) and, for a non-representative direction of a
+    ``"character"`` (Image 1, the keyed reference), ``"layout_guide"`` (a single still's second image: the safe-area guide,
+    docs/14; skipped with warning ``layout_guide_skipped`` when two references are already needed) and, for a non-representative direction of a
     multi-direction plan, ``"direction:<unit>"`` (Image 2), where ``<unit>`` is the unit whose adopted
     sheet to attach (``direction_reference_unit``), e.g. ``"direction:idle/down"``.
 ``direction_reference_unit(plan) -> str | None``   representative-direction unit (first body action
@@ -53,16 +54,18 @@ from functools import lru_cache
 from importlib import resources
 
 from .errors import ForgeError
+from .layout_guide import safe_area
 from .plan import DIRECTIONS_BY_VIEW, resolve_unit
 
 PROMPT_TEMPLATE_VERSION = "action_prompt@3"
 VIDEO_PROMPT_VERSION = "video_prompt@1"
+STILL_PROMPT_VERSION = "still_prompt@1"  # a single still prompt that attaches the layout guide (docs/14); the old still prompt keeps action_prompt@3
 MAX_PROMPT_CHARS = 6000
 MAX_EXTRA_CHARS = 500
 EDGE_TOUCH_MARGIN_PCT = 15
 KEY_NAMES = {"#FF00FF": "magenta", "#00FF00": "pure green"}
 
-HEADINGS = ("REFERENCE IDENTITY", "DIRECTION REFERENCE", "ACTION", "ADDITIONAL DIRECTION", "RECOVERY",
+HEADINGS = ("REFERENCE IDENTITY", "DIRECTION REFERENCE", "LAYOUT GUIDE", "ACTION", "ADDITIONAL DIRECTION", "RECOVERY",
             "CONSISTENCY RULES", "GRID RULES", "BACKGROUND RULE")
 REQUIRED_HEADINGS = ("REFERENCE IDENTITY", "ACTION", "CONSISTENCY RULES", "GRID RULES", "BACKGROUND RULE")
 FOOTER = "No text. No watermark. No UI."
@@ -74,6 +77,7 @@ class PromptResult:
     template_version: str
     references_needed: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    margin_pct: int = 8  # the safe-area margin the prompt states (the layout guide image is drawn with the same one)
 
 
 # ---------------------------------------------------------------- template loading
@@ -334,6 +338,13 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
     refs = reference_images_needed(plan, action, direction)
     if _needs_direction_reference(plan, direction) and len(refs) == 1:
         warnings.append("no_representative_direction_unit")
+    guide = False
+    if breathe:  # a still is sized by a layout guide as the second reference; with two references already, skip it
+        guide = len(refs) == 1
+        if guide:
+            refs = [*refs, "layout_guide"]
+        else:
+            warnings.append("layout_guide_skipped")
 
     blocks = [
         _fill("header.txt", rows=rows, cols=cols, action_title=title, frames=frames),
@@ -341,8 +352,11 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
         _sections("art_style.txt")["style"][plan["art_style"]],
         _camera_block(plan, direction),
     ]
-    if len(refs) > 1:
+    if len(refs) > 1 and not guide:
         blocks.append(_template("direction_reference.txt"))
+    if guide:
+        lo, hi, crown, floor = safe_area(margin_pct)
+        blocks.append(_fill("layout_guide.txt", key_name=_key_name(key_hex), key_hex=key_hex, lo=lo, hi=hi, crown=crown, floor=floor))
     blocks.append(_still_block(title) if breathe else _action_block(plan, profile, action, multi, direction))
     if extra:
         blocks.append(_fill("additional_direction.txt", extra=extra))
@@ -361,7 +375,7 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
     problems = validate_prompt(text)
     if problems:
         raise ForgeError("invalid_prompt", "; ".join(problems))
-    return PromptResult(text, PROMPT_TEMPLATE_VERSION, refs, warnings)
+    return PromptResult(text, STILL_PROMPT_VERSION if guide else PROMPT_TEMPLATE_VERSION, refs, warnings, margin_pct)
 
 
 def build_canonical_prompt(description: str, *, art_style: str = "clean_hd", view: str = "side",
