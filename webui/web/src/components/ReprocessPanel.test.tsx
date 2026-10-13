@@ -76,4 +76,18 @@ describe('ReprocessPanel', () => {
     act(() => { vi.advanceTimersByTime(REPROCESS_DEBOUNCE_MS) })
     expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ align: 'per_frame' }))
   })
+
+  it('offers the scale edge mode: edge-safe is the default and is not sent, the previous mode is shown as changed and sent', () => {
+    const onApply = vi.fn()
+    const { unmount } = render(<ReprocessPanel initial={initial} planDefaults={planDefaults} onApply={onApply} onSaveDefaults={vi.fn()} defaultOpen />)
+    expect(screen.getByTestId('reprocess-resample_mode')).toHaveTextContent('가장자리 보호')
+    expect(screen.getByTestId('reprocess-resample_mode').closest('[data-changed]')).toHaveAttribute('data-changed', 'false')
+    unmount()
+    render(<ReprocessPanel initial={{ ...initial, resample_mode: 'legacy' }} planDefaults={planDefaults} onApply={onApply} onSaveDefaults={vi.fn()} defaultOpen />)
+    expect(screen.getByTestId('reprocess-resample_mode')).toHaveTextContent('이전 방식')
+    expect(screen.getByTestId('reprocess-resample_mode').closest('[data-changed]')).toHaveAttribute('data-changed', 'true')
+    press('merge_gap_px', 'ArrowRight')
+    act(() => { vi.advanceTimersByTime(REPROCESS_DEBOUNCE_MS) })
+    expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ resample_mode: 'legacy' }))
+  })
 })

@@ -13,6 +13,7 @@ export const REPROCESS_DEBOUNCE_MS = 300
 
 const ENUM_LABELS: { key: keyof typeof ENUMS; label: string }[] = [
   { key: 'align', label: '정렬 방식' },
+  { key: 'resample_mode', label: '축소 방식' },
   { key: 'anchor', label: '기준점' },
   { key: 'x_anchor', label: '가로 기준' },
   { key: 'scale_strategy', label: '크기 전략' },
@@ -20,7 +21,10 @@ const ENUM_LABELS: { key: keyof typeof ENUMS; label: string }[] = [
 ]
 
 /** Friendlier names for options whose raw value is not self-explanatory. */
-const ENUM_OPTION_LABELS: Record<string, string> = { register: '공통 배치 (기본)', per_frame: '프레임별 (이전 방식)' }
+const ENUM_OPTION_LABELS: Record<string, string> = {
+  register: '공통 배치 (기본)', per_frame: '프레임별 (이전 방식)',
+  coverage: '가장자리 보호 (기본)', legacy: '이전 방식',
+}
 
 interface Props {
   /** values of the attempt as last processed; remount (key) to load new ones */
@@ -50,9 +54,11 @@ export function ReprocessPanel({ initial, planDefaults, onApply, onSaveDefaults,
     clearTimeout(timer.current)
     timer.current = setTimeout(() => apply.current(valuesToSet(next)), REPROCESS_DEBOUNCE_MS)
   }
-  // `align` is not stored per action in the plan: its default is always the shared-placement mode
-  const baseline: Record<keyof typeof ENUMS, string> = { align: 'register', ...planDefaults }
-  const differs = (k: keyof typeof ENUMS) => values[k] !== baseline[k]
+  // `align` and `resample_mode` are not stored per action in the plan: their defaults are always the shared-placement /
+  // edge-safe modes
+  const baseline: Record<keyof typeof ENUMS, string> = { align: 'register', resample_mode: 'coverage', ...planDefaults }
+  const current = (k: keyof typeof ENUMS) => values[k] ?? baseline[k]
+  const differs = (k: keyof typeof ENUMS) => current(k) !== baseline[k]
 
   return (
     <Collapsible defaultOpen={defaultOpen} className="space-y-3" data-testid="reprocess-panel">
@@ -66,7 +72,7 @@ export function ReprocessPanel({ initial, planDefaults, onApply, onSaveDefaults,
         {ENUM_LABELS.map(({ key, label }) => (
           <div key={key} className="space-y-1" data-changed={differs(key)}>
             <Label className={cn(differs(key) && 'font-bold text-primary')}>{label}</Label>
-            <Select value={values[key]} onValueChange={(v) => change({ [key]: v })} disabled={!!disabledReason}>
+            <Select value={current(key)} onValueChange={(v) => change({ [key]: v })} disabled={!!disabledReason}>
               <SelectTrigger className="w-full" data-testid={`reprocess-${key}`}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ENUMS[key].map((o) => <SelectItem key={o} value={o}>{ENUM_OPTION_LABELS[o] ?? o}</SelectItem>)}

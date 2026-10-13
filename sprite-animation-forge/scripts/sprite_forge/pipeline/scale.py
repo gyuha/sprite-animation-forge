@@ -18,7 +18,7 @@ Public API
     Pixels (left/top/right/bottom, >= 0) that the scaled bbox would leave outside the
     ``cell_w x cell_h`` canvas when aligned to the target. Nothing is ever cropped; the
     caller reports it (QC-01).
-``resample(rgba, scale, pixel_art) -> np.ndarray``  resize to ``round_half_up(size*scale)``
+``resample(rgba, scale, pixel_art, mode="legacy") -> np.ndarray``  resize to ``round_half_up(size*scale)``
     (at least 1 px per side). ``pixel_art``: BOX + alpha binarisation (alpha >= 128);
     otherwise premultiplied alpha (``RGBa``) + LANCZOS.
 
@@ -118,9 +118,41 @@ def overflow_px(m: Measure, scale: float, layout: Layout, anchor: str, x_anchor:
     }
 
 
-def resample(rgba: np.ndarray, scale: float, pixel_art: bool) -> np.ndarray:
+RESAMPLE_MODES = ("coverage", "legacy")
+_COVERED = 1e-3  # a resampled colour weight below this carries no colour at all
+
+
+def _resize_f(channel: np.ndarray, size) -> np.ndarray:
+    return np.asarray(Image.fromarray(channel, "F").resize(size, Image.BILINEAR), dtype=np.float32)
+
+
+def _resample_coverage(rgba: np.ndarray, size) -> np.ndarray:
+    """Alpha (coverage) and colour are resampled apart: alpha with LANCZOS (sharp edge), colour as the alpha-weighted
+    mean under a non-negative kernel (BILINEAR with area support). A weighted mean of the covered source colours cannot
+    leave the range of the colours around it, so an edge gets no light rim, no ringing and no stray colour at a faint
+    alpha - which premultiplied LANCZOS produces when it divides its undershoot back out."""
+    alpha = np.asarray(Image.fromarray(rgba[..., 3], "L").resize(size, Image.LANCZOS))
+    a = rgba[..., 3].astype(np.float32) / 255.0
+    weight = _resize_f(a, size)
+    covered = weight > _COVERED
+    out = np.zeros((size[1], size[0], 4), dtype=np.uint8)
+    for c in range(3):
+        mean = _resize_f(rgba[..., c].astype(np.float32) * a, size) / np.where(covered, weight, 1.0)
+        out[..., c] = np.floor(np.clip(np.where(covered, mean, 0.0), 0.0, 255.0) + 0.5).astype(np.uint8)
+    out[..., 3] = np.where(covered, alpha, 0)
+    out[out[..., 3] == 0] = 0
+    return out
+
+
+def resample(rgba: np.ndarray, scale: float, pixel_art: bool, mode: str = "legacy") -> np.ndarray:
+    """``mode`` ``"legacy"`` (the default here; premultiplied-alpha LANCZOS, byte-identical to earlier output) or
+    ``"coverage"`` (``_resample_coverage``). Pixel art is always BOX + binarised alpha, whatever the mode."""
+    if mode not in RESAMPLE_MODES:
+        raise ValueError(f"resample mode {mode!r}; choose from {RESAMPLE_MODES}")
     h, w = rgba.shape[:2]
     size = (max(1, round_half_up(w * scale)), max(1, round_half_up(h * scale)))
+    if mode == "coverage" and not pixel_art:
+        return _resample_coverage(rgba, size)
     img = Image.fromarray(rgba, "RGBA").convert("RGBa")
     img = img.resize(size, Image.BOX if pixel_art else Image.LANCZOS)
     out = np.array(img.convert("RGBA"))

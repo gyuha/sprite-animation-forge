@@ -7,6 +7,8 @@ type Params = Record<string, any>
 
 export interface ReprocessValues {
   align: string
+  /** scale edge handling; absent = the server default `coverage` */
+  resample_mode?: string
   anchor: string
   x_anchor: string
   scale_strategy: string
@@ -26,6 +28,7 @@ export const PLAN_KEYS = ['anchor', 'x_anchor', 'scale_strategy', 'components'] 
 
 export const ENUMS = {
   align: ['register', 'per_frame'],
+  resample_mode: ['coverage', 'legacy'],
   anchor: ['feet', 'bottom', 'center'],
   x_anchor: ['mass', 'feet', 'bbox'],
   scale_strategy: ['fit', 'preserve'],
@@ -46,6 +49,7 @@ export const SLIDERS: { key: keyof ReprocessValues & string; label: string; min:
 export function valuesFromParams(p: Params | null | undefined): ReprocessValues {
   return {
     align: p?.align ?? 'register',
+    resample_mode: p?.resample_mode, // process.json written before the setting existed has none: reprocessing uses the default
     anchor: p?.anchor ?? 'feet',
     x_anchor: p?.x_anchor ?? 'mass',
     scale_strategy: p?.scale_strategy ?? 'fit',
@@ -65,7 +69,11 @@ export function valuesFromParams(p: Params | null | undefined): ReprocessValues 
  * Every value, not only the changed ones: the server applies `set` on top of the plan's settings (not on top of the
  * previous reprocess), so a partial set would silently drop earlier tweaks.
  */
-export const valuesToSet = (v: ReprocessValues): ProcessSet => ({ ...v })
+export const valuesToSet = (v: ReprocessValues): ProcessSet => {
+  const { resample_mode, ...rest } = v
+  // `coverage` is the server default, so it is left out: the set is applied on top of the plan's settings either way
+  return resample_mode && resample_mode !== 'coverage' ? { ...rest, resample_mode } : { ...rest }
+}
 
 /** Apply a patch and keep t_in < t_out (the server pipeline requires it); the control just edited wins. */
 export function patchValues(v: ReprocessValues, patch: Partial<ReprocessValues>): ReprocessValues {

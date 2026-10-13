@@ -202,7 +202,7 @@ def load_scale_profile(cd) -> ScaleProfile | None:
 
 _ENUMS = {"anchor": ("feet", "bottom", "center"), "x_anchor": ("mass", "feet", "bbox"),
           "scale_strategy": ("fit", "preserve"), "components": ("largest", "all"),
-          "align": ("register", "per_frame")}
+          "align": ("register", "per_frame"), "resample_mode": ("coverage", "legacy")}
 _INTS = ("merge_gap_px", "min_area_px", "edge_band_px", "margin_top", "margin_side", "margin_bottom")
 _FLOATS = ("t_in", "t_out")
 

@@ -55,13 +55,14 @@ def place_frame(
     x_anchor: str,
     pixel_art: bool = False,
     anchor_xy: tuple[float, float] | None = None,
+    resample_mode: str = "legacy",
 ) -> Placement:
     h, w = cell_rgba.shape[:2]
     x0, y0, x1, y1 = measure.bbox
     cx0, cy0 = max(0, x0 - CROP_PAD), max(0, y0 - CROP_PAD)
     cx1, cy1 = min(w, x1 + CROP_PAD), min(h, y1 + CROP_PAD)
     crop = np.ascontiguousarray(cell_rgba[cy0:cy1, cx0:cx1])
-    small = resample(crop, scale, pixel_art)
+    small = resample(crop, scale, pixel_art, resample_mode)
 
     fx = small.shape[1] / crop.shape[1]
     fy = small.shape[0] / crop.shape[0]

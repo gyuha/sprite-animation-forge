@@ -94,7 +94,7 @@ def test_align_register_airborne_keeps_the_vertical_arc(tmp_path):
 ])
 def test_align_register_per_frame_is_byte_identical_to_the_legacy_output(tmp_path, variant, digest):
     make_sheet(variant, 2, 3, (256, 256)).save(tmp_path / "raw.png")
-    process_sheet(tmp_path / "raw.png", tmp_path / "out", ProcessParams(align="per_frame"))
+    process_sheet(tmp_path / "raw.png", tmp_path / "out", ProcessParams(align="per_frame", resample_mode="legacy"))
     assert hashlib.sha256((tmp_path / "out" / "sheet.png").read_bytes()).hexdigest() == digest  # pinned before the change
 
 

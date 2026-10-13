@@ -28,6 +28,10 @@
 
 | sprite-gen 기능 | 구현 | 테스트 ID |
 |---|---|---|
+| 셀 축소 시 coverage(알파)와 colour를 따로 리샘플해 가장자리에 밝은 테두리·색 번짐이 없게 함 (비정수 배율, 색은 주변 색 범위 안) | `pipeline/scale.py` `_resample_coverage`·`resample(mode=)`, `process.py` `resample_mode` | `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_coverage_keeps_every_visible_colour_inside_its_neighbourhoods_range`, `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_the_legacy_filter_does_break_that_range_so_the_check_discriminates`, `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_coverage_leaves_no_colour_on_transparent_pixels_and_keeps_the_interior`, `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_coverage_has_no_key_colour_fringe_when_transparent_pixels_carry_the_key`, `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_is_deterministic` |
+| 옛 방식은 옵션으로 남기고 출력은 바이트 동일, 픽셀 아트는 모드와 무관 | `resample_mode=legacy` | `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_legacy_is_byte_identical_to_the_frozen_implementation`, `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_pixel_art_ignores_the_mode`, `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_size_rule_is_the_same_in_both_modes`, `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_process_with_legacy_reproduces_the_pinned_sheet_bytes` |
+| 기본값 전환과 기록, 알 수 없는 모드 거부 | `ProcessParams.resample_mode`, `process.json` `params.resample_mode` | `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_coverage_is_the_default_recorded_and_changes_only_the_edges`, `sprite-animation-forge/tests/test_sg_resample.py::test_sg_resample_an_unknown_mode_is_rejected` |
+| 재처리 API·UI에서 모드 선택 (기본값은 전송하지 않음) | `workflow.py` `_ENUMS`, `ReprocessPanel.tsx`, `lib/reprocess.ts` | `webui/server/tests/test_sg_resample_api.py::test_sg_resample_api_the_default_mode_is_recorded_and_legacy_can_be_chosen`, `webui/server/tests/test_sg_resample_api.py::test_sg_resample_api_an_unknown_mode_is_an_invalid_param` |
 
 ### C. 영상 프롬프트·루프 선택
 
