@@ -108,6 +108,7 @@ class AttemptDetail(BaseModel):
     process: dict | None
     qc: dict | None
     vision_review: dict | None = None  # vision-review.json: advisory Codex review of the frames (POST .../review)
+    video_meta: dict | None = None  # video-meta.json of a method=video attempt: loop cut, foot strike, jolt, size hold, held drawings
     files: AttemptFiles
 
 
@@ -220,7 +221,7 @@ def get_attempt(request: Request, cid: str, action: str, aid: str,
                          summary=_summary(cd, cid, unit, aid, ent), generation=read_json(adir / "generation.json"),
                          process=read_json(adir / "process.json"), qc=read_json(adir / "qc-report.json"),
                          vision_review=read_json(adir / "vision-review.json"),
-                         files=_files(cd, cid, unit, aid))
+                         video_meta=read_json(adir / "video-meta.json"), files=_files(cd, cid, unit, aid))
 
 
 @router.post(BASE + "/attempts/{aid}/process")

@@ -51,6 +51,7 @@ from .layout_guide import make_layout_guide
 from .plan import resolve_unit
 from .prompt import VIDEO_PROMPT_VERSION, PromptResult, build_canonical_prompt, build_prompt, build_video_prompt
 from .providers import CodexCliProvider, GenerationRequest, VideoRequest
+from .video_gait import foot_view
 from .providers.video_factory import make_video_provider
 from . import video_sprite
 from .workflow import _attempt_entry, _kind, _open_image, write_character
@@ -141,7 +142,7 @@ def _assemble_video_attempt(cd, plan, action, unit, attempt, res, provider_name,
         frames, fps = video_sprite.extract_frames(res.video_path, adir / ".clip-frames")
         sheet, info = video_sprite.build_raw_sheet(frames, act["frames"], rows, cols, plan["key_color"], act["loop"],
                                                    cycles=act.get("cycles"), min_len=act.get("min_len"),
-                                                   max_len=act.get("max_len"))
+                                                   max_len=act.get("max_len"), foot=foot_view(plan, action))
     except ForgeError as exc:
         raise _video_failure(cd, plan, action, unit, attempt, exc.code, exc.message) from None
     finally:

@@ -537,6 +537,10 @@ export interface components {
             summary: components["schemas"]["AttemptSummary"];
             /** Unit */
             unit: string;
+            /** Video Meta */
+            video_meta?: {
+                [key: string]: unknown;
+            } | null;
             /** Vision Review */
             vision_review?: {
                 [key: string]: unknown;

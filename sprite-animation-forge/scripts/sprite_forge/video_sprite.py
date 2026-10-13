@@ -24,6 +24,7 @@ from .errors import EXIT_PRECONDITION, ForgeError
 from .pipeline.chroma import compute_alpha, estimate_background
 from .pipeline.scale import resample
 from .qc_motion import thumb
+from .video_gait import foot_strike_start, jolt_metrics
 from .video_loop import detect_held, distance_matrix, find_loop, reduce_indices, seam_pop, select_oneshot
 
 CANVAS_FILL = 0.6        # character height / canvas height of the first frame
@@ -152,9 +153,10 @@ def hold_size(rgbas: list[np.ndarray]) -> tuple[list[np.ndarray], dict]:
 
 def build_raw_sheet(frames: list[Path], n: int, rows: int, cols: int, key_hex: str, loop: bool,
                     cell: int = SHEET_CELL, *, size_hold: bool = True, cycles: int | None = None,
-                    min_len: int | None = None, max_len: int | None = None) -> tuple[Image.Image, dict]:
+                    min_len: int | None = None, max_len: int | None = None, foot: str | None = None) -> tuple[Image.Image, dict]:
     """Pick ``n`` frames of the clip as a sheet in the plan's grid. ``min_len``/``max_len`` are the loop's period window in
-    source frames (a clip that holds each drawing for k frames reads them as drawings: the window is divided by k)."""
+    source frames (a clip that holds each drawing for k frames reads them as drawings: the window is divided by k). ``foot``
+    (``"side"``/``"front"``, a looping walk or run) starts the loop on a foot strike and records the jolt index."""
     if n > rows * cols:
         raise ForgeError("invalid_params", f"{n} frames do not fit a {rows}x{cols} grid")
     rgbas = [_rgba(p) for p in frames]
@@ -172,7 +174,13 @@ def build_raw_sheet(frames: list[Path], n: int, rows: int, cols: int, key_hex: s
         choice = find_loop(dist, n, sel, min_len=scale_len(min_len), max_len=scale_len(max_len), cycles=cycles)
         start, span = choice.start, choice.span
         info.update(research=choice.research, cycles_suspected=choice.cycles_suspected,
-                    seam_ratio=None if choice.seam_ratio is None else round(choice.seam_ratio, 4))
+                    seam_ratio=None if choice.seam_ratio is None else round(choice.seam_ratio, 4),
+                    start_foot_source=None, foot_shift=0, jolt_index=None, head_move=None)
+        if foot:
+            sel_frames = [rgbas[i] for i in unique]
+            new_start, source = foot_strike_start(sel_frames, start, span, foot)
+            info.update(start_foot_source=source, foot_shift=abs(new_start - start), **jolt_metrics(sel_frames, new_start, span))
+            start = new_start
         pop = seam_pop(sel, start, span)
         info["seam_pop"] = None if pop is None else round(pop, 4)
     else:

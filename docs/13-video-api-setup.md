@@ -114,3 +114,16 @@ uv run pytest -m live -k video -q
 | 명시 길이 창 | plan 액션의 `min_len`·`max_len`(원본 프레임 수)이 모든 경로(첫 탐색·재탐색)에서 주기의 범위를 제한한다 | — |
 
 plan 액션 키: `cycles`(1~4), `min_len`, `max_len` — `plan --set walk.cycles=2 --set walk.max_len=40`처럼 쓴다.
+
+### 7.1 걷기·달리기 리포트 (발 디딤·점프 지표)
+
+looping 걷기·달리기(단일 방향)는 컷의 시작을 발이 땅에 닿는 프레임으로 옮기고(허용: 반 주기 안, 클립 안), 몸이 얼마나 튀는지 기록한다. 모두 `video-meta.json`에 남고 스튜디오 attempt 상세 API(`video_meta`)가 노출한다.
+
+| 필드 | 뜻 |
+|---|---|
+| `start_foot_source` | `legs_spread`(측면: 두 다리가 가장 벌어진 프레임) · `legs_lift`(앞/뒷모습: 두 발 높이가 같은 프레임) · `none`(다리가 없는 몸 — 하체 폭이 평균의 15% 넘게 변하지 않거나 발 높이 차이가 키의 4% 미만) · `null`(걷기·달리기가 아님). `none`이면 시작은 그대로다 |
+| `foot_shift` | 시작을 옮긴 프레임 수 |
+| `jolt_index` | 몸 전체 질량 중심 궤적의 2차 차분 크기 평균(루프를 닫아서) ÷ 피사체 키. 합성 클립 기준 정지한 걷기 ≈ 0.02, 매끈한 상하 움직임 ≈ 0.015, 프레임마다 튀는 움직임 ≈ 0.15 (실제 클립 값은 미검증) |
+| `head_move` | 머리 중심의 최대 이동폭 ÷ 키 |
+
+plan `max_jolt`를 지정하면(`--set walk.max_jolt=0.08`) 처리(`process`)할 때 지표가 그 값을 넘으면 `process.json`의 `warnings`에 `jolt_exceeded: …`가 들어간다. 지정하지 않으면 경고는 없다(게이트 없음). QC 항목이 아니라 처리 경고다.

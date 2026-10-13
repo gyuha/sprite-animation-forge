@@ -112,6 +112,18 @@
             "title": "Unit",
             "type": "string"
           },
+          "video_meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Meta"
+          },
           "vision_review": {
             "anyOf": [
               {

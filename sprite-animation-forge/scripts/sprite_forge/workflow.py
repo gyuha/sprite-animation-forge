@@ -64,6 +64,7 @@ from .fsutil import (
 from .pipeline import PipelineError
 from .pipeline.chroma import KEY_MAGENTA, remove_background
 from .pipeline.process import process_breathe, process_sheet
+from .video_gait import jolt_warning
 from .pipeline.scale import ScaleProfile
 from . import recovery, schemas
 from .pipeline.measure import measure_frame
@@ -254,6 +255,13 @@ def process_attempt(cd, plan, action, direction, attempt=None, sets=None) -> dic
                 result = process_sheet(adir / "raw.png", adir, params, profile)
         except PipelineError as exc:
             raise ForgeError(exc.code, str(exc)) from None
+        if act.get("method", "grid") == "video":  # the plan's jolt limit (no limit, no warning) is checked on every (re)process
+            meta_file = adir / "video-meta.json"
+            warning = jolt_warning(json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else None,
+                                   act.get("max_jolt"))
+            if warning:
+                result.data["warnings"] = [*result.data["warnings"], warning]
+                (adir / "process.json").write_text(json.dumps(result.data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         report = run_qc(result, action=action, params=params, profile=profile, attempt=attempt,
                         loop=act["loop"], qc_profile=act.get("qc_profile"))
         entry = dict(mf.load(cd)["actions"].get(unit, {}))

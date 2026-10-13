@@ -5,47 +5,12 @@ import math
 
 import numpy as np
 import pytest
-from PIL import Image, ImageDraw
 from sprite_forge import plan as plan_mod
 from sprite_forge import video_loop as vl
 from sprite_forge import video_sprite as vs
 from sprite_forge.qc_motion import thumb
 
-KEY = (255, 0, 255)
-W, H = 200, 260
-BASE = 1.5  # the walker fills the frame like a first frame made by prepare_first_frame does
-
-
-def walker(phase, scale=1.0, amp=1.0, lift=0, top_hidden=False):
-    """One frame: body, head, two swinging legs and arms, feet on the line y = 250."""
-    img = Image.new("RGB", (W, H), KEY)
-    d = ImageDraw.Draw(img)
-    s = scale * BASE
-    cx, feet = W / 2, 250 - lift
-
-    def box(x0, y0, x1, y1, color):
-        d.rectangle([cx + x0 * s, feet - y1 * s, cx + x1 * s, feet - y0 * s], fill=color)
-
-    swing = math.sin(phase) * 22 * amp
-    box(-10 + swing, 0, 2 + swing, 38, (40, 60, 200))        # leg a
-    box(-2 - swing, 0, 10 - swing, 38, (30, 90, 160))        # leg b
-    box(-14, 38, 14, 86, (200, 60, 40))                      # torso
-    box(-24 - swing * .7, 52, -14 - swing * .7, 84, (220, 170, 60))  # arm a
-    box(14 + swing * .7, 52, 24 + swing * .7, 84, (220, 170, 60))    # arm b
-    box(-9, 86, 9, 104, (240, 200, 160))                     # head
-    if top_hidden:  # a subject that never reaches the upper half of the frame
-        d.rectangle([0, 0, W, 180], fill=KEY)
-    return img
-
-
-def clip(tmp_path, total, period, *, scale=lambda i: 1.0, held=1, amp=lambda i: 1.0, lift=lambda i: 0, top_hidden=False):
-    paths = []
-    for i in range(total):
-        j = i // held
-        p = tmp_path / f"{i:04d}.png"
-        walker(2 * math.pi * j / period, scale(i), amp(i), lift(i), top_hidden).save(p)
-        paths.append(p)
-    return paths
+from sg_clips import BASE, H, KEY, W, clip, walker  # noqa: F401
 
 
 def thumbs_of(paths):

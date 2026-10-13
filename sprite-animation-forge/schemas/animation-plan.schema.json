@@ -72,6 +72,7 @@
         "cycles": { "type": "integer", "minimum": 1, "maximum": 4 },
         "min_len": { "type": "integer", "minimum": 2 },
         "max_len": { "type": "integer", "minimum": 2 },
+        "max_jolt": { "type": "number", "minimum": 0 },
         "directions": { "$ref": "#/$defs/directions" }
       }
     }
