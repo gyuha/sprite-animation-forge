@@ -16,6 +16,18 @@
 - **QC:** 프레임 수·빈 프레임·접지·잘림 등 자동 검사와 실패 시 복구 권장(재처리/재생성)
 - **내보내기:** 프레임 PNG, 스프라이트 시트, GIF 미리보기, Phaser atlas + `animations.json`, 캐릭터 QC 리포트
 
+## 생성 방식 (method)
+
+액션마다 plan에 하나가 정해진다. 기본은 `grid`이고, 나머지는 선택이다.
+
+| 방식 | 하는 일 | 필요한 것 |
+|---|---|---|
+| `grid` (기본) | 격자 시트 한 장을 Codex로 생성 → 후처리 | Codex 로그인 |
+| `breathe` | 정지 1장(레이아웃 가이드 첨부) + 결정적 호흡 변형, idle 전용 | Codex 로그인 |
+| `video` | 첫 프레임에서 영상을 생성한 뒤 프레임 추출·루프 선택·정렬로 스프라이트 변환 (단일 방향 플랜만) | xAI 키(또는 `grok login`), ffmpeg, 선택: RIFE |
+
+영상 방식은 [연결 안내](docs/13-video-api-setup.md)를 따라 키를 연결하고 `forge.py doctor`에서 `video.configured: true`를 확인한 뒤 쓴다. 끝나지 못한 영상 생성은 `forge.py resume <캐릭터> <액션> --attempt NNN`으로 재과금 없이 이어받는다. 사용한 이미지·영상 생성 기법은 [sprite-gen](https://github.com/aldegad/sprite-gen)(Apache-2.0)의 동작을 읽고 **재구현**한 것이며, 반영 범위와 미채택 사유는 [`docs/14`](docs/14-sprite-gen-sync.md)에 있다.
+
 ## 구성
 
 | 구성 요소 | 위치 | 역할 |
@@ -73,6 +85,7 @@ $F plan hero --actions idle,walk,attack
 $F generate hero walk                      # Codex로 새 attempt 생성
 $F process hero walk                       # 후처리 + QC
 $F accept hero walk                        # 마음에 들면 채택
+# 한쪽 손에 무기를 든 캐릭터는 계획에 손을 알려 준다(좌측면을 반전하지 않고 직접 생성): plan hero --handed right
 $F export hero                             # atlas / animations.json / GIF
 ```
 
@@ -113,6 +126,8 @@ $F export hero                             # atlas / animations.json / GIF
 | [07 export](docs/07-export.md) | atlas·Phaser JSON·GIF |
 | [09 web-ui](docs/09-web-ui.md), [10 backend-api](docs/10-backend-api.md) | 화면 설계와 REST/SSE API |
 | [11 testing](docs/11-testing.md) | 테스트 전략 |
+| [13 video-api-setup](docs/13-video-api-setup.md) | 동영상 방식 연결, 루프 선택, RIFE 보정 (선택) |
+| [14 sprite-gen-sync](docs/14-sprite-gen-sync.md) | sprite-gen 변경 반영 기록과 미채택 사유 |
 
 ## 라이선스
 

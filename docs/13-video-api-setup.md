@@ -1,6 +1,6 @@
 # 13. 동영상 방식 API 연결 안내 (xAI Grok Imagine)
 
-동영상 방식(`method=video`)은 **선택 기능**이다. 이미지 방식(`grid`, `breathe`)만 쓴다면 이 문서는 필요 없다. 이 문서는 xAI의 Grok Imagine 영상 생성을 연결하는 순서를 단계별로 안내한다. 연결 상태가 `configured: true`가 되면 플랜에서 `method=video`를 고를 수 있다(영상 → 스프라이트 변환은 별도 작업에서 구현).
+동영상 방식(`method=video`)은 **선택 기능**이다. 이미지 방식(`grid`, `breathe`)만 쓴다면 이 문서는 필요 없다. 이 문서는 xAI의 Grok Imagine 영상 생성을 연결하는 순서를 단계별로 안내한다. 연결 상태가 `configured: true`가 되면 플랜에서 `method=video`를 고를 수 있고(단일 방향 플랜만), 만든 영상은 프레임 추출·루프 선택·정렬을 거쳐 기존 후처리·QC로 이어진다(§7 루프 선택, §8 RIFE 보정). 이어받기(`resume`)는 문제 해결 표를 본다.
 
 > **확인 필요 표기**: 엔드포인트·모델명·응답 필드·가격·이용 한도는 sprite-gen(Apache-2.0) 구현을 참고해 정리한 값이며 이 저장소에서 실제 계정으로 검증하지 못했다. "확인 필요"가 붙은 항목은 연결 후 `live` 테스트(5단계)로 먼저 확인한다. 설정값(모델명 등)은 환경 변수로 바꿀 수 있다.
 
@@ -58,7 +58,7 @@ uv run python sprite-animation-forge/scripts/forge.py doctor
 
 ## 4. ffmpeg 설치 (영상 → 프레임 변환용)
 
-영상에서 프레임을 뽑을 때 `ffmpeg`가 필요하다(변환 기능 구현 후 사용).
+영상에서 프레임을 뽑을 때 `ffmpeg`·`ffprobe`가 필요하다. 없으면 `ffmpeg_missing` 오류(종료 코드 3)로 attempt가 실패한다.
 
 ```bash
 brew install ffmpeg        # macOS
