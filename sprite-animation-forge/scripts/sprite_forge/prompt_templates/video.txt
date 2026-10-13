@@ -1,5 +1,7 @@
 Animate this exact character in place: {title}.
 {description}
+{locomotion_line}
+{gait_line}
 {loop_line}
 The character stays centered and does not travel across the frame. The camera is completely static: no zoom, no pan, no cuts.
 Keep the plain {key_name} ({key_hex}) background perfectly flat and unchanged in every frame; no shadows, no ground, no particles or effects outside the character.

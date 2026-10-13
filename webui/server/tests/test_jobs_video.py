@@ -45,7 +45,7 @@ def test_jobs_video_generate_runs_without_codex_and_serves_the_clip(jc, root, fa
     assert job["result"]["attempt"] == "001" and job["result"]["qc_status"] in ("pass", "warn", "fail")
     detail = jc.get(char_url("hero", "/actions/walk/attempts/001")).json()
     assert detail["files"]["video"].startswith("/files/hero/walk/attempts/001/raw.mp4")
-    assert len(detail["files"]["frames"]) == 6 and detail["summary"]["prompt_version"] == "video_prompt@1"
+    assert len(detail["files"]["frames"]) == 6 and detail["summary"]["prompt_version"] == "video_prompt@2"
     clip = jc.get(detail["files"]["video"])
     assert clip.status_code == 200 and clip.content[4:8] == b"ftyp"
 

@@ -45,6 +45,10 @@
 
 | sprite-gen 기능 | 구현 | 테스트 ID |
 |---|---|---|
+| 걷기·달리기는 모든 시점에서 제자리(트레드밀) 표현 | `prompt.py` `build_video_prompt`, `prompt_templates/video_locomotion.txt` | `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_walk_and_run_move_in_place_like_on_a_treadmill_in_every_view`, `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_other_actions_get_no_locomotion_lines`, `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_version_is_bumped` |
+| 앞/뒷모습 걷기·달리기: 작고 차분한 걸음, 발을 내차지 않음, 걸음 방향 | `video_locomotion.txt` `walk_down`·`walk_up`·`run_down`·`run_up` | `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_side_views_have_no_front_or_back_gait_line`, `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_front_and_back_walks_take_small_calm_steps_and_say_which_way`, `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_front_and_back_runs_say_which_way` |
+| 호출자가 직접 쓴 걸음걸이는 그대로 유지(덮어쓰지 않음) | `build_video_prompt` | `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_a_callers_own_gait_is_kept_and_not_overridden` |
+| 액션별 첫 프레임 캔버스: 공격·점프는 머리 위 여유, 걷기·달리기는 여유 없이 크게 | `video_sprite.py` `canvas_layout`·`prepare_first_frame(layout=)`, `generation.py` | `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_canvas_layouts_by_action`, `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_attack_canvas_keeps_head_room_and_walk_canvas_does_not`, `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_the_default_canvas_is_unchanged_and_keeps_the_character_inside`, `sprite-animation-forge/tests/test_sg_video_prompt.py::test_sg_video_prompt_generate_uses_the_actions_canvas` |
 
 ### D. RIFE 보정·복원
 

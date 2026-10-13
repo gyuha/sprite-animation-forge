@@ -384,7 +384,7 @@ Prompt Generator 단위 테스트는 다음을 보장한다.
 
 ## 9. 동영상 방식(`method=video`) 프롬프트
 
-동영상 방식은 격자 시트 프롬프트(§3)를 쓰지 않는다. 동영상 모델은 **첫 프레임 이미지**(키 색 캔버스에 캐릭터를 가운데 약 60% 높이로 배치한 `first-frame.png`)를 움직이므로, 프롬프트에는 동작·반복·배경 규칙만 들어간다. 생성기는 `prompt.build_video_prompt`, 템플릿은 `prompt_templates/video.txt`·`video_loop_line.txt`, 버전은 `video_prompt@1`(`generation.json`의 `prompt_template_version`)이다.
+동영상 방식은 격자 시트 프롬프트(§3)를 쓰지 않는다. 동영상 모델은 **첫 프레임 이미지**(키 색 캔버스에 캐릭터를 가운데 약 60% 높이로 배치한 `first-frame.png`)를 움직이므로, 프롬프트에는 동작·반복·배경 규칙만 들어간다. 생성기는 `prompt.build_video_prompt`, 템플릿은 `prompt_templates/video.txt`·`video_loop_line.txt`, 버전은 `video_prompt@2`(`generation.json`의 `prompt_template_version`)이다.
 
 ```
 Animate this exact character in place: <title>.
@@ -423,3 +423,10 @@ Animate this exact character in place: <title>.
 머리 위 여유가 plan 여백(px)을 바꾸지 않는 이유: 후처리는 측정한 bbox에 맞춰 `fit` 배율로 셀 안에 넣으므로, 생성된 시트에 머리 위 공간이 더 있어도 출력 셀의 여백 체계(`margin.top` 8px)는 그대로다. 여유는 *생성 쪽*의 문제(팔·무기가 칸 위로 잘리지 않게)다.
 
 `handed`: plan의 선택 필드(`none` | `left` | `right`, 없으면 `none`). 값이 있으면 좌우 미러(`mirror: {"left": "right"}`)를 끄고 왼쪽 방향을 별도 unit으로 생성한다(미러하면 소지품이 반대 손으로 옮겨지기 때문). `--mirror`를 명시하면 오류(`invalid_params`)다. CLI `plan --handed left|right|none`, 계획 화면의 "손잡이" 선택이 같은 값을 쓴다.
+
+### 9.1 시점별 걷기·달리기와 첫 프레임 캔버스 (`video_prompt@2`)
+
+- **제자리**: 걷기·달리기는 모든 시점에서 "트레드밀처럼 제자리에서 자연스럽게, 바닥은 흐르지 않는다" 줄이 들어간다(`video_locomotion.txt`의 `inplace`).
+- **앞/뒷모습 걸음 문구**: 방향이 `down`이면 "작고 차분한 걸음, 발을 카메라 쪽으로 내차지 않음, 몸은 곧게 카메라와 정면, 곧장 viewer 쪽으로", `up`이면 "…발을 옆으로 내차지 않음…곧장 viewer에게서 멀어짐". 달리기는 "다리가 몸 아래에 머문다"와 방향. 측면은 이 줄이 없다.
+- **호출자의 걸음걸이**: plan 액션에 `motion`을 직접 쓰면 그 문구가 그대로 쓰이고 위 걸음 문구는 붙이지 않는다(제자리 줄은 유지).
+- **첫 프레임 캔버스**(`video_sprite.canvas_layout`): 위 여백·캐릭터 높이(캔버스 비율) — walk·run `(0.06, 0.80)`(머리 위 여유 없이 크게), attack·jump `(0.30, 0.55)`(든 무기를 위한 머리 위 공간), 그 외는 가운데 60%(기존). 값은 우리 합성 캐릭터로 잘림 없음을 확인한 것이며 sprite-gen의 수치와 같지는 않다(그쪽은 정지 그림 위 20% 행을 따로 확장).

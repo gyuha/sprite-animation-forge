@@ -176,7 +176,8 @@ def _generate_video_unit(cd, plan, profile, action, unit, extra, timeout, provid
 
     try:
         atomic_write_text(adir / "prompt.txt", pr.text)
-        first = video_sprite.prepare_first_frame(keyed, adir / "first-frame.png", plan["key_color"])
+        first = video_sprite.prepare_first_frame(keyed, adir / "first-frame.png", plan["key_color"],
+                                                layout=video_sprite.canvas_layout(action))
         vreq = VideoRequest(pr.text, first, adir / "raw.mp4", last_frame=first if pin_last else None,
                             timeout_s=max(timeout, VIDEO_MIN_TIMEOUT))
 

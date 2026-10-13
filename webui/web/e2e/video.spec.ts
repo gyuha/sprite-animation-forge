@@ -18,7 +18,7 @@ test('a video idle is generated from a clip, shows its clip and prompt version, 
   expect((await server.waitJob(job.id)).state).toBe('succeeded')
 
   await page.goto('/c/hero/studio/idle')
-  await expect(page.getByTestId('attempt-prompt-version-001')).toHaveText('video_prompt@1')
+  await expect(page.getByTestId('attempt-prompt-version-001')).toHaveText('video_prompt@2')
   await expect(page.getByTestId('attempt-video-link')).toHaveAttribute('href', /raw\.mp4/)
   await page.getByTestId('accept-button').click()
   const confirm = page.getByTestId('accept-confirm')

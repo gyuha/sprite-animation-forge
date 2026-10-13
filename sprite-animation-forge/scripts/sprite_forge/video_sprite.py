@@ -1,7 +1,8 @@
 """Video -> sprite attempt (docs/13). The clip is turned into a ``raw.png`` sheet in the plan's grid, so the normal
 pipeline (chroma -> split -> scale -> align -> QC) runs unchanged on it.
 
-``prepare_first_frame(reference, out, key_hex, size)``  square key-colour canvas with the character centred at ~60 %.
+``prepare_first_frame(reference, out, key_hex, size, layout=None)``  square key-colour canvas with the character centred at ~60 %
+                             (or placed by ``canvas_layout(action)``: walk/run big with no head-room, attack/jump with room above).
 ``extract_frames(mp4, out_dir) -> (paths, fps)``         ffmpeg/ffprobe; ``ffmpeg_missing`` (exit 3) when absent.
 ``build_raw_sheet(frames, n, rows, cols, key_hex, loop, cell) -> (sheet, info)``  selection + background normalisation.
 
@@ -34,8 +35,20 @@ def _key_rgb(key_hex: str) -> tuple[int, int, int]:
     return tuple(int(key_hex[i:i + 2], 16) for i in (1, 3, 5))
 
 
-def prepare_first_frame(reference, out, key_hex: str, size: int = 768) -> Path:
+# (top margin, character height) as fractions of the square canvas, by action. A walker or runner never raises anything
+# above its head, so it gets no extra head-room and more pixels; an attack or jump needs room above the head for a raised
+# weapon. Anything else keeps the centred default (None).
+CANVAS_BY_ACTION = {"walk": (0.06, 0.80), "run": (0.06, 0.80), "attack": (0.30, 0.55), "jump": (0.30, 0.55)}
+
+
+def canvas_layout(action: str) -> tuple[float, float] | None:
+    return CANVAS_BY_ACTION.get(action)
+
+
+def prepare_first_frame(reference, out, key_hex: str, size: int = 768, layout: tuple[float, float] | None = None) -> Path:
+    """``layout`` = ``(top margin, character height)`` as fractions of the canvas, or None for the centred ~60 % default."""
     key = _key_rgb(key_hex)
+    top_frac, fill = layout if layout else (None, CANVAS_FILL)
     img = Image.open(reference).convert("RGB")
     arr = np.asarray(img, dtype=np.float64)
     mask = np.sqrt(((arr - np.asarray(key, dtype=np.float64)) ** 2).sum(axis=-1)) > KEY_TOLERANCE
@@ -43,10 +56,11 @@ def prepare_first_frame(reference, out, key_hex: str, size: int = 768) -> Path:
         raise ForgeError("invalid_image", "the reference has no character pixels (all key colour)")
     ys, xs = np.where(mask)
     box = img.crop((int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1))
-    scale = min(size * CANVAS_FILL / box.height, size * CANVAS_FILL / box.width * 1.4)
+    scale = min(size * fill / box.height, size * fill / box.width * 1.4)
     box = box.resize((max(1, round(box.width * scale)), max(1, round(box.height * scale))), Image.LANCZOS)
     canvas = Image.new("RGB", (size, size), key)
-    canvas.paste(box, ((size - box.width) // 2, (size - box.height) // 2))
+    top = (size - box.height) // 2 if top_frac is None else round(size * top_frac)
+    canvas.paste(box, ((size - box.width) // 2, top))
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(out, format="PNG")

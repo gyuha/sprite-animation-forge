@@ -58,7 +58,7 @@ from .layout_guide import safe_area
 from .plan import DIRECTIONS_BY_VIEW, resolve_unit
 
 PROMPT_TEMPLATE_VERSION = "action_prompt@4"
-VIDEO_PROMPT_VERSION = "video_prompt@1"
+VIDEO_PROMPT_VERSION = "video_prompt@2"
 STILL_PROMPT_VERSION = "still_prompt@1"  # a single still prompt that attaches the layout guide (docs/14); the old still prompt keeps action_prompt@3
 HEADROOM_PCT = {"attack": 20, "jump": 20}  # actions whose poses reach above the standing head: empty cell height above it
 MAX_PROMPT_CHARS = 6000
@@ -275,8 +275,10 @@ def _recovery_block(codes: list[str], frames: int, key_hex: str, identity_fields
 
 def build_video_prompt(plan: dict, profile: dict | None, action: str, extra: str | None = None) -> PromptResult:
     """Prompt for ``method=video`` (docs/13): the video model animates the first frame (the keyed character on a key
-    colour canvas), so there is no grid / identity block, only the motion, loop and background rules."""
-    resolve_unit(plan, action, None)
+    colour canvas), so there is no grid / identity block, only the motion, loop and background rules. Walk and run move
+    *in place* in every view; a front or back view also gets its stepping words (small calm steps, which way they go)
+    unless the caller wrote their own ``motion`` (their gait is kept as written)."""
+    _, direction, _ = resolve_unit(plan, action, None)
     act = plan["actions"][action]
     lib = MOTION_LIBRARY.get(action)
     weapon = ((profile or {}).get("identity", {}).get("weapon") or "").strip() or "weapon"
@@ -287,7 +289,11 @@ def build_video_prompt(plan: dict, profile: dict | None, action: str, extra: str
     if len(extra) > MAX_EXTRA_CHARS:
         raise ForgeError("invalid_params", f"extra is {len(extra)} chars; max {MAX_EXTRA_CHARS}")
     key_hex = plan["key_color"].upper()
+    rows = _sections("video_locomotion.txt")
+    locomotion = action in LOCOMOTION_ACTIONS and act.get("kind") != "fx"
+    gait = rows.get(f"{action}_{direction}", {}).get("") if locomotion and not act.get("motion") else ""
     blocks = [_fill("video.txt", title=(lib["title"] if lib else action.replace("_", " ")), description=description,
+                    locomotion_line=rows["inplace"][""].format(action=action) if locomotion else "", gait_line=gait or "",
                     loop_line=_sections("video_loop_line.txt")["loop" if act["loop"] else "oneshot"][""],
                     key_name=_key_name(key_hex), key_hex=key_hex)]
     if extra:
