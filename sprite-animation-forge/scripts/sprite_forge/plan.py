@@ -82,6 +82,7 @@ OVERRIDE_KEYS = {
     "kind": "str", "frames": "int", "grid": "str", "loop": "bool", "fps": "int", "anchor": "str",
     "x_anchor": "str", "scale_strategy": "str", "components": "str", "qc_profile": "str",
     "motion": "str", "poses": "pipes", "directions": "csv", "method": "str",
+    "cycles": "int", "min_len": "int", "max_len": "int",  # method=video: loop cut hints (cycles in the cut, period window in source frames)
 }
 # generation method per action (.forge/CONTEXT.md "생성 방식"): grid = one sheet per call; breathe = one still +
 # deterministic breathing; video = generated clip converted to sprites (needs a connected video provider)
@@ -193,7 +194,7 @@ def _build_action(name: str, ov: dict) -> dict:
             action["frames"] = BREATHE_FRAMES
     # key order: stable, readable
     order = ["kind", "method", "frames", "grid", "loop", "fps", "anchor", "scale_strategy", "x_anchor",
-             "components", "qc_profile", "motion", "poses", "directions"]
+             "components", "qc_profile", "motion", "poses", "directions", "cycles", "min_len", "max_len"]
     action = {k: action[k] for k in order if k in action}
     r, c = (int(x) for x in action["grid"].split("x"))
     if (r * c < action["frames"] and method != "breathe") or r < 1 or c < 1:

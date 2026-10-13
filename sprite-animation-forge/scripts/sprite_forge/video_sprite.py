@@ -22,8 +22,9 @@ from PIL import Image
 
 from .errors import EXIT_PRECONDITION, ForgeError
 from .pipeline.chroma import compute_alpha, estimate_background
+from .pipeline.scale import resample
 from .qc_motion import thumb
-from .video_loop import distance_matrix, reduce_indices, select_loop, select_oneshot
+from .video_loop import detect_held, distance_matrix, find_loop, reduce_indices, seam_pop, select_oneshot
 
 CANVAS_FILL = 0.6        # character height / canvas height of the first frame
 KEY_TOLERANCE = 60.0     # RGB distance from the key colour that counts as "character" in the reference
@@ -110,23 +111,79 @@ def _square_cell(rgb: np.ndarray, alpha: np.ndarray, key: tuple[int, int, int], 
     return padded.resize((cell, cell), Image.LANCZOS)
 
 
+SIZE_TOL = 0.04          # a clip whose subject stays within this of its first height is not touched
+SIZE_CLAMP = (0.5, 2.0)  # never rescale a frame by more than this
+MIN_SUBJECT_PX = 12      # a first frame with a smaller subject cannot be measured
+
+
+def _subject_height(rgba: np.ndarray) -> int:
+    rows = np.where((rgba[..., 3] >= 128).any(axis=1))[0]
+    return int(rows[-1] - rows[0] + 1) if rows.size else 0
+
+
+def hold_size(rgbas: list[np.ndarray]) -> tuple[list[np.ndarray], dict]:
+    """Bring every frame's subject back to the first frame's height (a walker coming toward the camera grows and its loop
+    never closes). Each frame is scaled about its bottom centre onto a canvas wide and tall enough for the biggest scaling, so
+    scaling up widens the picture instead of cutting the crown. A clip whose subject stays within ``SIZE_TOL`` is returned
+    as it is."""
+    heights = [_subject_height(f) for f in rgbas]
+    ref = next((h for h in heights if h), 0)
+    info = {"applied": False, "max_ratio": 1.0}
+    if ref < MIN_SUBJECT_PX:
+        return rgbas, info
+    ratios = [h / ref if h else 1.0 for h in heights]
+    info["max_ratio"] = round(max(max(r, 1 / r) for r in ratios), 4)
+    if info["max_ratio"] - 1 <= SIZE_TOL:
+        return rgbas, info
+    factors = [min(max(ref / h, SIZE_CLAMP[0]), SIZE_CLAMP[1]) if h else 1.0 for h in heights]
+    h0, w0 = rgbas[0].shape[:2]
+    big = max(1.0, max(factors))
+    cw, ch = int(np.ceil(w0 * big)), int(np.ceil(h0 * big))
+    held = []
+    for f, factor in zip(rgbas, factors):
+        scaled = resample(f, factor, False, mode="coverage")
+        canvas = np.zeros((ch, cw, 4), dtype=np.uint8)
+        x0, y0 = (cw - scaled.shape[1]) // 2, ch - scaled.shape[0]
+        canvas[y0:, x0:x0 + scaled.shape[1]] = scaled
+        held.append(canvas)
+    info["applied"] = True
+    return held, info
+
+
 def build_raw_sheet(frames: list[Path], n: int, rows: int, cols: int, key_hex: str, loop: bool,
-                    cell: int = SHEET_CELL) -> tuple[Image.Image, dict]:
+                    cell: int = SHEET_CELL, *, size_hold: bool = True, cycles: int | None = None,
+                    min_len: int | None = None, max_len: int | None = None) -> tuple[Image.Image, dict]:
+    """Pick ``n`` frames of the clip as a sheet in the plan's grid. ``min_len``/``max_len`` are the loop's period window in
+    source frames (a clip that holds each drawing for k frames reads them as drawings: the window is divided by k)."""
     if n > rows * cols:
         raise ForgeError("invalid_params", f"{n} frames do not fit a {rows}x{cols} grid")
     rgbas = [_rgba(p) for p in frames]
-    dist = distance_matrix([thumb(f) for f in rgbas])
+    hold = {"applied": False, "max_ratio": 1.0}
+    if size_hold:
+        rgbas, hold = hold_size(rgbas)
+    thumbs = [thumb(f) for f in rgbas]
+    held_ratio, unique = detect_held(thumbs)
+    per_drawing = len(thumbs) / len(unique)
+    sel = [thumbs[i] for i in unique]
+    dist = distance_matrix(sel)
+    info: dict = {}
     if loop:
-        start, span = select_loop(dist, n)
+        scale_len = lambda v: None if not v else max(1, round(v / per_drawing))  # noqa: E731
+        choice = find_loop(dist, n, sel, min_len=scale_len(min_len), max_len=scale_len(max_len), cycles=cycles)
+        start, span = choice.start, choice.span
+        info.update(research=choice.research, cycles_suspected=choice.cycles_suspected,
+                    seam_ratio=None if choice.seam_ratio is None else round(choice.seam_ratio, 4))
+        pop = seam_pop(sel, start, span)
+        info["seam_pop"] = None if pop is None else round(pop, 4)
     else:
         start, end = select_oneshot(dist, n)
         span = end - start
-    picked = reduce_indices(start, span, n, loop)
+    picked = [unique[min(i, len(unique) - 1)] for i in reduce_indices(start, span, n, loop)]
     key = _key_rgb(key_hex)
     sheet = Image.new("RGB", (cols * cell, rows * cell), key)
     for k, idx in enumerate(picked):
         f = rgbas[min(idx, len(rgbas) - 1)]
         sheet.paste(_square_cell(f[..., :3], f[..., 3], key, cell), ((k % cols) * cell, (k // cols) * cell))
-    info = {"source_frames": len(frames), "selected": "loop" if loop else "oneshot", "start": start, "span": span,
-            "indices": picked}
+    info.update({"source_frames": len(frames), "selected": "loop" if loop else "oneshot", "start": start, "span": span,
+                 "indices": picked, "size_hold": hold, "held": {"ratio": round(held_ratio, 4), "drawings": len(unique)}})
     return sheet, info

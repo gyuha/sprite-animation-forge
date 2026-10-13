@@ -99,3 +99,18 @@ uv run pytest -m live -k video -q
 
 - 구현: `sprite_forge/providers/video_base.py`(인터페이스), `xai_video.py`(xAI), `fake_video.py`(테스트용 가짜 transport).
 - 설계 근거: 생성 방식(method)은 `.forge/CONTEXT.md`, 참고 구현은 <https://github.com/aldegad/sprite-gen>(Apache-2.0, 코드 복사 없이 재구현).
+
+## 7. 루프 선택 (영상 → 프레임)
+
+영상에서 뽑은 프레임으로 plan의 프레임 수만큼 고르는 규칙이다(`video_loop.py`·`video_sprite.py`). 결과는 attempt의 `video-meta.json`에 남는다.
+
+| 항목 | 동작 | `video-meta.json` 필드 |
+|---|---|---|
+| 느린 걷기 재탐색 | 첫 탐색의 이음새가 "닫히지 않으면"(이음새 ≥ 보통 한 스텝의 60% 또는 동작 범위의 절반도 못 덮음) 썸네일을 8×8로 줄이고 2프레임 창으로 클립 길이까지 다시 찾는다. 뚜렷이 나을 때만 채택 | `research: "wider"` |
+| 크기 고정 | 첫 프레임 대비 피사체 높이가 4% 넘게 변하면(카메라 쪽으로 걷는 클립 등) 모든 프레임의 피사체를 첫 프레임 높이로 되돌린다. 아래 가운데를 기준으로 확대하고 캔버스를 넓혀 머리가 잘리지 않는다 | `size_hold: {applied, max_ratio}` |
+| 2주기 의심 | 고른 컷이 1/2·1/3 길이에서도 잘 닫히면 "2·3주기가 들어 있을 수 있음"으로 **기록만** 한다(픽셀의 말만 믿고 자르지 않음). 사용자가 `cycles=N`으로 알려 주면 한 주기만 자른다 | `cycles_suspected` |
+| 유지 그림 | 같은 그림을 2~3프레임씩 보여 주는 클립은 그림 단위로 읽는다(고른 프레임이 같은 그림의 중복이 되지 않음) | `held: {ratio, drawings}` |
+| 이음새 튐 | 닫는 한 프레임 스텝 ÷ 컷 안의 가장 큰 정상 스텝(프레임 위쪽 절반에서). ≈1이면 정상, 훨씬 크면 튐. 위쪽을 읽을 수 없으면 `null` | `seam_pop`, `seam_ratio` |
+| 명시 길이 창 | plan 액션의 `min_len`·`max_len`(원본 프레임 수)이 모든 경로(첫 탐색·재탐색)에서 주기의 범위를 제한한다 | — |
+
+plan 액션 키: `cycles`(1~4), `min_len`, `max_len` — `plan --set walk.cycles=2 --set walk.max_len=40`처럼 쓴다.

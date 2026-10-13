@@ -20,14 +20,14 @@ wall: none
 
 ## Check progress
 <!-- 2026-10-13 계약 강화(완화 아님): C5·C6·C7에 하위 기능별 선택자를 추가. 사유: #33 직후 C5가 #34의 기능 없이 개수(≥12)만으로 통과하는 허점이 드러남. 백로그 소진 전에는 미완 체크를 pending으로 기록하고 ×N을 올리지 않는다(남은 계약 작업이 담당). -->
-- C1: pass ×0 · regressed: ×0 · last-evidence: "1028 passed, 4 skipped, 3 deselected, 1 warning in 194.63s (0:03:14); missing baseline ids=0"
+- C1: pass ×0 · regressed: ×0 · last-evidence: "1042 passed, 4 skipped, 3 deselected, 1 warning in 197.65s (0:03:17); missing baseline ids=0"
 - C2: pass ×0 · regressed: ×0 · last-evidence: "vitest=215 e2e=12"
 - C3: pass ×0 · regressed: ×0 · last-evidence: "sg_provider=33/12"
 - C4: pass ×0 · regressed: ×0 · last-evidence: "sg_resample=27/6"
 - C5: pass ×0 · regressed: ×0 · last-evidence: "sg_image=42/12; sg_image and layout_guide=12/8; sg_image and headroom=8/2; sg_image and view_keep=6/2; sg_image and handed=16/3"
-- C6: pending ×0 · regressed: ×0 · last-evidence: "sg_video=18/14; sg_video and video_prompt=18/4; sg_video and video_loop=0/6!; sg_video and video_foot=0/3!"
+- C6: pending ×0 · regressed: ×0 · last-evidence: "sg_video=32/14; sg_video and video_prompt=18/4; sg_video and video_loop=14/6; sg_video and video_foot=0/3!"
 - C7: pending ×0 · regressed: ×0 · last-evidence: "sg_rife=0/12!; sg_rife and interpolator=0/4!; sg_rife and ghost=0/3!; sg_rife and restore=0/4!"
-- C8: pending ×0 · regressed: ×0 · last-evidence: "rows: {'A': 11, 'B': 12, 'C': 4, 'D': 0} not adopted: 0 | ERROR area D: no rows | ERROR not-adopted table has 0 complete rows, need >= 5"
+- C8: pending ×0 · regressed: ×0 · last-evidence: "rows: {'A': 11, 'B': 12, 'C': 10, 'D': 0} not adopted: 0 | ERROR area D: no rows | ERROR not-adopted table has 0 complete rows, need >= 5"
 - C9: pass ×0 · regressed: ×0 · last-evidence: "branches unchanged"
 
 ## Authorized replan scope
