@@ -69,6 +69,12 @@ def _typical(regions) -> list[float]:
     return [float(np.median([np.abs(r[(k + 1) % n] - r[k]).mean() for k in range(n)])) for r in regions]
 
 
+def baseline_of(frames):
+    """``(box, typical steps)`` of a loop as filmed: what later readings of the same loop are measured against."""
+    box = _union_box(frames)
+    return box, _typical(_regions(frames, box))
+
+
 def odd_scores(frames, baseline=None) -> list[float]:
     """``baseline`` = ``(box, typical steps)`` from the loop as filmed; None = measured from ``frames`` themselves."""
     n = len(frames)
@@ -107,8 +113,7 @@ def repair_jumps(frames, interpolator=None, mode: str = "auto", discover=find_in
     if not report["jumps"]:
         return list(frames), report
     out = list(frames)
-    box = _union_box(frames)
-    baseline = (box, _typical(_regions(frames, box)))
+    baseline = baseline_of(frames)
     for _ in range(MAX_REPAIRS):
         scores = odd_scores(out, baseline)
         target = int(np.argmax(scores))

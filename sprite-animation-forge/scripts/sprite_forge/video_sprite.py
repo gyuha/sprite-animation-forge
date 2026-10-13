@@ -24,6 +24,7 @@ from .errors import EXIT_PRECONDITION, ForgeError
 from .pipeline.chroma import compute_alpha, estimate_background
 from .pipeline.scale import resample
 from .qc_motion import thumb
+from .video_restore import restore_made_frames
 from .video_ghost import crossfade, give_way
 from .video_gait import foot_strike_start, jolt_metrics
 from .video_repair import repair_jumps
@@ -156,11 +157,12 @@ def hold_size(rgbas: list[np.ndarray]) -> tuple[list[np.ndarray], dict]:
 def build_raw_sheet(frames: list[Path], n: int, rows: int, cols: int, key_hex: str, loop: bool,
                     cell: int = SHEET_CELL, *, size_hold: bool = True, cycles: int | None = None,
                     min_len: int | None = None, max_len: int | None = None, foot: str | None = None,
-                    repair: str = "off", interpolator=None) -> tuple[Image.Image, dict]:
+                    repair: str = "off", interpolator=None, source_dir: Path | None = None) -> tuple[Image.Image, dict]:
     """Pick ``n`` frames of the clip as a sheet in the plan's grid. ``min_len``/``max_len`` are the loop's period window in
     source frames (a clip that holds each drawing for k frames reads them as drawings: the window is divided by k). ``foot``
     (``"side"``/``"front"``, a looping walk or run) starts the loop on a foot strike and records the jolt index. ``repair``
-    (``"off"``/``"auto"``/``"on"``, docs/14) remakes jump frames of a loop with ``interpolator`` (RIFE), see ``video_repair``."""
+    (``"off"``/``"auto"``/``"on"``, docs/14) remakes jump frames of a loop with ``interpolator`` (RIFE), see ``video_repair``; a made frame that came out damaged is restored from its source where that is
+    safe (``video_restore``). ``source_dir`` keeps the sheet's source frames (``<position>-<source frame>.png``)."""
     if n > rows * cols:
         raise ForgeError("invalid_params", f"{n} frames do not fit a {rows}x{cols} grid")
     rgbas = [_rgba(p) for p in frames]
@@ -196,7 +198,13 @@ def build_raw_sheet(frames: list[Path], n: int, rows: int, cols: int, key_hex: s
     if loop:  # a hitch is read (and repaired) on the dense cut, then the sheet's frames are taken from it
         cut_src = [unique[min(i, len(unique) - 1)] for i in range(start, start + span)]
         cut, ghost = give_way([rgbas[i] for i in cut_src], key)  # a frame that cross-fades two drawings gives way to its clean neighbour
-        cut, report = repair_jumps(cut, interpolator, repair)
+        before_repair = cut
+        cut, report = repair_jumps(before_repair, interpolator, repair)
+        cut, restore = restore_made_frames(cut, before_repair, report["made"], key)  # a melted made frame: back to its source if safe
+        gone = {r["frame"] for r in restore["restored"]}
+        report["made"] = [o for o in report["made"] if o not in gone]
+        report["restored"] = [{**r, "source_frame": cut_src[r["source_frame"]], "frame": cut_src[r["frame"]]} for r in restore["restored"]]
+        report["restore_regressed"] = [{**r, "frame": cut_src[r["frame"]]} for r in restore["regressed"]]
         report["made_source"] = [cut_src[o] for o in report["made"]]
         report["crossfade"] = crossfade(cut, report["made"])  # a made frame that cross-fades is measured and named, and kept
         ghost["ghosts"] = [cut_src[o] for o in ghost["ghosts"]]
@@ -206,7 +214,8 @@ def build_raw_sheet(frames: list[Path], n: int, rows: int, cols: int, key_hex: s
         seq = [cut[min(max(pos - start, 0), len(cut) - 1)] for pos in positions]
         report["made_in_sheet"] = [k for k, pos in enumerate(positions) if pos - start in report["made"]]
     else:
-        report = {"applied": False, "jumps": [], "made": [], "unmade": [], "why": "not_a_loop", "warnings": [], "crossfade": []}
+        report = {"applied": False, "jumps": [], "made": [], "unmade": [], "why": "not_a_loop", "warnings": [], "crossfade": [],
+                  "restored": [], "restore_regressed": []}
         ghost = {"ghosts": [], "given_way": [], "retake": []}
         seq = [rgbas[min(idx, len(rgbas) - 1)] for idx in picked]
     sheet = Image.new("RGB", (cols * cell, rows * cell), key)
@@ -215,5 +224,11 @@ def build_raw_sheet(frames: list[Path], n: int, rows: int, cols: int, key_hex: s
     info.update({"source_frames": len(frames), "selected": "loop" if loop else "oneshot", "start": start, "span": span,
                  "indices": picked, "size_hold": hold, "held": {"ratio": round(held_ratio, 4), "drawings": len(unique)},
                  "jump_repair": report, "made": report.get("made_in_sheet", []), "ghost": ghost, "retake": ghost["retake"],
-                 "warnings": report["warnings"]})
+                 "restored": report["restored"], "restore_regressed": report["restore_regressed"], "warnings": report["warnings"]})
+    if source_dir is not None:  # the sheet's frames as the clip had them (after the size hold), for provenance and a later reprocess
+        source_dir.mkdir(parents=True, exist_ok=True)
+        for old in source_dir.glob("*.png"):
+            old.unlink()
+        for k, idx in enumerate(picked):
+            Image.fromarray(rgbas[min(idx, len(rgbas) - 1)], "RGBA").save(source_dir / f"{k:02d}-{idx:04d}.png", format="PNG")
     return sheet, info
