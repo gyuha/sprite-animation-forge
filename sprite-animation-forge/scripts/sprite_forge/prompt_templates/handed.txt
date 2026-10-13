@@ -1,0 +1,6 @@
+[near]
+- The item is held in the character's {handed} hand. In this view that arm is the one nearer to the viewer: keep the item in that hand in every cell.
+[far]
+- The item is held in the character's {handed} hand. In this view that arm is the one farther from the viewer, partly hidden behind the body: keep the item in that hand in every cell.
+[screen]
+- The item is held in the character's {handed} hand, which is on the {side} side of the image as the viewer sees it: keep the item in that hand in every cell.

@@ -1,0 +1,1 @@
+- Leave at least {pct}% of the cell height empty above the head of the standing character: raised arms, weapons and jumps need that room.

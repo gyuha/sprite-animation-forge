@@ -2,4 +2,6 @@ CONSISTENCY RULES
 - Identical character scale and camera distance in every cell.
 {baseline_line}
 - Same facing direction ({facing}) in every cell.
+{view_keep_line}
+{handed_line}
 - Full body visible in every cell. Nothing cropped.

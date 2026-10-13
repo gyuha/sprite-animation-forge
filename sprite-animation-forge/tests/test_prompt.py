@@ -216,7 +216,7 @@ def test_prompt_templates_load_from_package_resources():
 
 
 def test_prompt_template_version_format():
-    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@3"
+    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@4"
     assert pr.build_prompt(side_plan(), PROFILE, "walk").template_version == pr.PROMPT_TEMPLATE_VERSION
 
 
@@ -471,7 +471,7 @@ def test_prompt_shared_baseline_rule_is_dropped_for_airborne_actions(action, exp
 
 
 def test_prompt_template_version_is_action_prompt_3():
-    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@3"
+    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@4"
 
 
 def test_plan_process_params_marks_airborne_actions_to_keep_vertical_travel():

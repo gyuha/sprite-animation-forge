@@ -806,6 +806,8 @@ export interface components {
             directions?: ("down" | "up" | "right" | "left")[] | null;
             /** Facing */
             facing?: string | null;
+            /** Handed */
+            handed?: ("none" | "left" | "right") | null;
             /** Mirror */
             mirror?: boolean | null;
             /**

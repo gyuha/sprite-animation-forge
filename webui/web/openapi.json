@@ -954,6 +954,22 @@
             ],
             "title": "Facing"
           },
+          "handed": {
+            "anyOf": [
+              {
+                "enum": [
+                  "none",
+                  "left",
+                  "right"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handed"
+          },
           "mirror": {
             "anyOf": [
               {

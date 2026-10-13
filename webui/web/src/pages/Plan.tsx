@@ -10,6 +10,7 @@
  *   plan-cell                       출력 cell select 트리거
  *   direction-controls              방향 선택 영역 — view=topdown 일 때만 렌더링됨
  *   direction-down|up|right|left    방향 체크박스
+ *   plan-handed                     손잡이 select (없음 · 왼손 · 오른손). 지정하면 좌측면 반전이 꺼지고 좌측면을 직접 생성한다
  *   mirror-switch                   좌측면 "우측면 반전" 스위치 (topdown 에서만 존재)
  *   mirror-off-note                 mirror 를 껐을 때의 예상 시간 증가 안내
  *   asymmetry-badge                 서버 plan.assumptions 에 "비대칭" 경고가 있을 때
@@ -51,9 +52,9 @@ import { latestBatchJob, summarizeBatch } from '@/lib/batch'
 import { VIEW_OPTIONS } from '@/lib/character'
 import { resolveKeyColor } from '@/lib/color'
 import {
-  BREATHE_FRAMES, BUNDLE_LABELS, CELL_OPTIONS, CUSTOM_BUNDLE, DIRECTIONS, actionValues, applyDraftToPlan, buildCreateRequest, canMirror,
+  BREATHE_FRAMES, BUNDLE_LABELS, CELL_OPTIONS, CUSTOM_BUNDLE, DIRECTIONS, HANDED_OPTIONS, actionValues, applyDraftToPlan, buildCreateRequest, canMirror,
   countUnits, draftFromPlan, effectiveMirror, estimateSeconds, expandBundle, formatDuration, withView,
-  type ActionValues, type GenerationMethod, type PlanDraft, type PlanDirection,
+  type ActionValues, type GenerationMethod, type Handed, type PlanDraft, type PlanDirection,
 } from '@/lib/plan'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -296,6 +297,15 @@ function PlanEditor({ cid, presets, plan, initial, keyColors }: {
         </div>
       </section>
 
+      <section className="space-y-1.5 rounded-lg border p-4" data-testid="handed-controls">
+        <Label>손잡이</Label>
+        <Select value={draft.handed ?? 'none'} onValueChange={(handed) => patch({ handed: handed as Handed })}>
+          <SelectTrigger className="w-56" data-testid="plan-handed"><SelectValue /></SelectTrigger>
+          <SelectContent>{HANDED_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+        </Select>
+        <p className="text-sm text-muted-foreground">무기 등을 한 손에만 들면 지정하세요. 좌측면을 반전하지 않고 직접 생성해 소지품이 같은 손에 남습니다(예상 시간 증가).</p>
+      </section>
+
       {topdown && (
         <section className="space-y-3 rounded-lg border p-4" data-testid="direction-controls">
           <Label>방향</Label>
@@ -307,7 +317,7 @@ function PlanEditor({ cid, presets, plan, initial, keyColors }: {
                 <Label htmlFor={`dir-${value}`}>{label}</Label>
                 {value === 'left' && (
                   <>
-                    <Switch id="mirror" checked={effectiveMirror(draft)} disabled={!canMirror(draft)} data-testid="mirror-switch"
+                    <Switch id="mirror" checked={effectiveMirror(draft)} disabled={!canMirror(draft) || (draft.handed ?? 'none') !== 'none'} data-testid="mirror-switch"
                       onCheckedChange={(mirror) => patch({ mirror })} />
                     <Label htmlFor="mirror" className="text-muted-foreground">우측면 반전</Label>
                   </>

@@ -57,9 +57,10 @@ from .errors import ForgeError
 from .layout_guide import safe_area
 from .plan import DIRECTIONS_BY_VIEW, resolve_unit
 
-PROMPT_TEMPLATE_VERSION = "action_prompt@3"
+PROMPT_TEMPLATE_VERSION = "action_prompt@4"
 VIDEO_PROMPT_VERSION = "video_prompt@1"
 STILL_PROMPT_VERSION = "still_prompt@1"  # a single still prompt that attaches the layout guide (docs/14); the old still prompt keeps action_prompt@3
+HEADROOM_PCT = {"attack": 20, "jump": 20}  # actions whose poses reach above the standing head: empty cell height above it
 MAX_PROMPT_CHARS = 6000
 MAX_EXTRA_CHARS = 500
 EDGE_TOUCH_MARGIN_PCT = 15
@@ -114,6 +115,25 @@ def _baseline_line(plan: dict, action: str) -> str:
     from .plan import is_airborne
     act = plan["actions"].get(action, {})
     return "" if is_airborne(act, action) else BASELINE_LINE
+
+
+def _view_keep_line(direction: str) -> str:
+    """A front / back facing (down, up) must not drift toward a three-quarter view when redrawn from another picture."""
+    return _template("view_keep.txt") if direction in ("down", "up") else ""
+
+
+def _handed_line(plan: dict, direction: str) -> str:
+    """Which hand holds the item, and where that hand is in this facing; "" when the plan has no ``handed``."""
+    handed = plan.get("handed", "none")
+    if handed == "none":
+        return ""
+    rows = _sections("handed.txt")
+    if direction in ("right", "left"):  # a right-facing profile shows the character's right arm nearer the viewer
+        return rows["near" if direction == handed else "far"][""].format(handed=handed)
+    if direction in ("down", "up"):  # facing the viewer mirrors left/right on the image; facing away does not
+        side = (("left" if handed == "right" else "right") if direction == "down" else handed)
+        return rows["screen"][""].format(handed=handed, side=side)
+    return ""
 
 
 def _fill(name: str, **values) -> str:
@@ -364,8 +384,11 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
         blocks.append(_recovery_block(codes, frames, key_hex, identity_fields))
     empty = rows * cols - frames
     blocks += [
-        _fill("consistency_rules.txt", facing=direction, baseline_line=_baseline_line(plan, action)),
+        _fill("consistency_rules.txt", facing=direction, baseline_line=_baseline_line(plan, action),
+              view_keep_line=_view_keep_line(direction), handed_line=_handed_line(plan, direction)),
         _fill("grid_rules.txt", rows=rows, cols=cols, cells=rows * cols, margin_pct=margin_pct,
+              headroom_line=_template("grid_headroom.txt").format(pct=HEADROOM_PCT[action])
+              if action in HEADROOM_PCT and act.get("kind") != "fx" else "",
               empty_cells_line=_template("grid_empty_cells.txt").format(frames=frames, empty_cells=empty)
               if empty else ""),
         _fill("background_rule.txt", key_name=_key_name(key_hex), key_hex=key_hex),

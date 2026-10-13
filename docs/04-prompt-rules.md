@@ -405,5 +405,21 @@ Animate this exact character in place: <title>.
 `method=breathe`처럼 **정지 1장**을 만들 때는 두 번째 참조 이미지로 레이아웃 가이드를 붙인다(`layout_guide.make_layout_guide`). 키 색 정사각 캔버스에 (1) 안전 영역 윤곽(가로·세로 `m%`~`100-m%`), (2) 머리 선(위에서 `2m%`), (3) 발 선(위에서 `100-2m%`)을 그린 이미지다. `m`은 프롬프트의 여백 수치와 같다(기본 8, `edge_touch` 복구 시 15). 프롬프트에는 같은 수치를 문장으로 적고(`LAYOUT GUIDE` 블록: "second attached image is a layout guide ... 8% to 92% ... 16% from the top ... 84% from the top"), 가이드의 선과 윤곽을 결과에 그리지 말라고 못 박는다.
 
 - 참조 이미지는 최대 2장이므로 이미 2장이 필요한 정지(다중 방향 플랜의 비대표 방향)에는 가이드를 붙이지 않고 `layout_guide_skipped` 경고를 낸다. 이때 프롬프트는 이전과 바이트 동일하다.
-- 가이드를 붙인 정지 프롬프트의 버전은 `still_prompt@1`, 그 외는 `action_prompt@3`이다(`generation.json`의 `prompt_template_version`). 격자(grid) 프롬프트는 바뀌지 않는다.
+- 가이드를 붙인 정지 프롬프트의 버전은 `still_prompt@1`, 그 외는 `action_prompt@4`이다(`generation.json`의 `prompt_template_version`).
 - `generation.json`의 참조에는 `layout-guide`가 기록되고, attempt 폴더의 `ref-02.png`가 그 이미지다.
+
+---
+
+## 11. 머리 위 여유 · 앞/뒷모습 유지 · 손잡이 (`action_prompt@4`)
+
+`action_prompt@3`에서 `@4`로 올리며 세 가지가 프롬프트에 들어갔다. 해당하지 않는 프롬프트(예: 측면 걷기·idle)는 버전 줄 말고는 이전과 같다.
+
+| 항목 | 조건 | 들어가는 줄 (위치) |
+|---|---|---|
+| 머리 위 여유 | 액션이 `attack`·`jump` (`kind=fx` 제외) | GRID RULES: `Leave at least 20% of the cell height empty above the head of the standing character: raised arms, weapons and jumps need that room.` 옆 여백 규칙(8%·복구 시 15%)은 그대로 둔다 |
+| 앞/뒷모습 유지 | 방향이 `down` 또는 `up` (topdown의 두 방향, front·rear 시점) | CONSISTENCY RULES: `Keep exactly this facing in every cell; do not turn the body toward a three-quarter angle.` 다른 그림에서 다시 그려도 정면·뒷면이 3/4로 돌아가지 않게 한다 |
+| 손잡이 | plan에 `handed: "left"\|"right"` | CONSISTENCY RULES: 측면(`right`/`left`)은 소지품 손이 **보는 쪽에서 가까운 팔인지 먼 팔인지**(오른쪽을 보는 측면은 캐릭터의 오른팔이 가깝다), 앞/뒷모습(`down`/`up`)은 그 손이 **이미지의 어느 쪽**에 있는지(정면이면 좌우가 뒤집힌다) |
+
+머리 위 여유가 plan 여백(px)을 바꾸지 않는 이유: 후처리는 측정한 bbox에 맞춰 `fit` 배율로 셀 안에 넣으므로, 생성된 시트에 머리 위 공간이 더 있어도 출력 셀의 여백 체계(`margin.top` 8px)는 그대로다. 여유는 *생성 쪽*의 문제(팔·무기가 칸 위로 잘리지 않게)다.
+
+`handed`: plan의 선택 필드(`none` | `left` | `right`, 없으면 `none`). 값이 있으면 좌우 미러(`mirror: {"left": "right"}`)를 끄고 왼쪽 방향을 별도 unit으로 생성한다(미러하면 소지품이 반대 손으로 옮겨지기 때문). `--mirror`를 명시하면 오류(`invalid_params`)다. CLI `plan --handed left|right|none`, 계획 화면의 "손잡이" 선택이 같은 값을 쓴다.

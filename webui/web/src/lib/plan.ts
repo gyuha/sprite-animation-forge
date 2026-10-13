@@ -14,6 +14,12 @@ export const DIRECTIONS: { value: PlanDirection; label: string }[] = [
   { value: 'right', label: '우 (right)' },
   { value: 'left', label: '좌 (left)' },
 ]
+export type Handed = 'none' | 'left' | 'right'
+export const HANDED_OPTIONS: { value: Handed; label: string }[] = [
+  { value: 'none', label: '없음 (좌우 대칭)' },
+  { value: 'left', label: '왼손에 소지품' },
+  { value: 'right', label: '오른손에 소지품' },
+]
 export const CUSTOM_BUNDLE = 'custom'
 export const BUNDLE_LABELS: Record<string, string> = {
   'side-basic': '횡스크롤 기본',
@@ -38,6 +44,8 @@ export interface PlanDraft {
   cell: string
   directions: PlanDirection[]
   mirror: boolean
+  /** the character's hand holding an item; absent = none. Anything but none turns the left/right mirror off. */
+  handed?: Handed
 }
 
 const ALL_DIRECTIONS: PlanDirection[] = ['down', 'up', 'right', 'left']
@@ -64,7 +72,7 @@ export function withView(d: PlanDraft, view: string): PlanDraft {
 
 /** mirror (left <- right) only means something when both are generated directions. */
 export const canMirror = (d: Pick<PlanDraft, 'directions'>) => d.directions.includes('left') && d.directions.includes('right')
-export const effectiveMirror = (d: PlanDraft) => d.view === 'topdown' && d.mirror && canMirror(d)
+export const effectiveMirror = (d: PlanDraft) => d.view === 'topdown' && d.mirror && canMirror(d) && (d.handed ?? 'none') === 'none'
 
 const gridHolds = (grid: string, frames: number) => {
   const [r, c] = grid.split('x').map(Number)
@@ -116,6 +124,7 @@ export function buildCreateRequest(d: PlanDraft, presets: Presets): PlanCreateBo
     body.directions = ALL_DIRECTIONS.filter((x) => d.directions.includes(x))
     body.mirror = effectiveMirror(d)
   }
+  if (d.handed && d.handed !== 'none') body.handed = d.handed
   return body
 }
 
@@ -133,6 +142,7 @@ export function draftFromPlan(plan: Plan, presets: Presets): PlanDraft {
     cell: `${plan.cell.w}x${plan.cell.h}`,
     directions: plan.view === 'topdown' ? plan.directions : [],
     mirror: plan.mirror?.left === 'right',
+    ...(plan.handed && plan.handed !== 'none' ? { handed: plan.handed as Handed } : {}),
   }
 }
 
@@ -144,12 +154,14 @@ export function applyDraftToPlan(plan: Plan, d: PlanDraft, presets: Presets): Pl
     const base = plan.actions[name] ?? presets.frame_presets[name]
     actions[name] = { ...base, ...actionValues(name, d, presets) }
   }
+  const { handed: _previous, ...rest } = plan // eslint-disable-line @typescript-eslint/no-unused-vars
   return {
-    ...plan,
+    ...rest,
     actions,
     order: d.actions,
     cell: { w, h },
     ...(d.view === 'topdown' ? { directions: ALL_DIRECTIONS.filter((x) => d.directions.includes(x)) } : {}),
     mirror: effectiveMirror(d) ? { left: 'right' } : {},
+    ...(d.handed && d.handed !== 'none' ? { handed: d.handed } : {}),
   }
 }

@@ -85,6 +85,7 @@ OVERRIDE_KEYS = {
 }
 # generation method per action (.forge/CONTEXT.md "생성 방식"): grid = one sheet per call; breathe = one still +
 # deterministic breathing; video = generated clip converted to sprites (needs a connected video provider)
+HANDED = ("none", "left", "right")  # the character's own hand that holds an item; "none" = symmetric, mirror allowed
 METHODS = ("grid", "breathe", "video")
 BREATHE_FRAMES = 6
 MANY_FRAMES = 8  # grid actions with this many frames or more get a `frames_many` warning in plan.assumptions
@@ -235,6 +236,7 @@ def build_plan(
     profile: dict | None = None,
     engine: str = "phaser",
     assumptions: list[str] | None = None,
+    handed: str | None = None,
 ) -> dict:
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(actions))
@@ -257,10 +259,19 @@ def build_plan(
     if facing_explicit and facing in ("right", "left", "up", "down") and facing not in dirs:
         raise ForgeError("invalid_params", f"facing={facing} is not in directions {dirs}")
 
+    handed = handed or "none"
+    if handed not in HANDED:
+        raise ForgeError("invalid_params", f"handed={handed!r}; choose from {HANDED}")
     can_mirror = "left" in dirs and "right" in dirs
     if mirror is True and not can_mirror:
         raise ForgeError("invalid_params", "--mirror needs both left and right in directions")
+    if mirror is True and handed != "none":
+        raise ForgeError("invalid_params", "--mirror cannot be combined with --handed: a mirrored view would put the item in the other hand")
     use_mirror = can_mirror and view == "topdown" if mirror is None else bool(mirror)
+    if handed != "none":
+        if use_mirror:
+            notes.append(f"손잡이({handed}): 좌측면을 반전하지 않고 직접 생성합니다 (생성 시간 증가)")
+        use_mirror = False
     mirror_map = {"left": "right"} if use_mirror else {}
 
     key_rgb, key_warnings = resolve_key_color(_profile_colors(profile))
@@ -309,6 +320,8 @@ def build_plan(
         "order": list(actions),
         "assumptions": notes,
     }
+    if handed != "none":  # absent = none, so plans without a hand are byte-identical to before
+        plan["handed"] = handed
     for name, act in built.items():
         if act.get("method", "grid") != "breathe" and act["frames"] >= MANY_FRAMES:
             notes.append(f"frames_many: {name}: {act['frames']}프레임 - {MANY_FRAMES}프레임 이상은 칸 붕괴·중복 몸·빈 칸이 늘어납니다 (4~6프레임 권장)")

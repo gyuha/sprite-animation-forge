@@ -16,6 +16,7 @@
       "additionalProperties": false,
       "properties": { "left": { "const": "right" } }
     },
+    "handed": { "enum": ["none", "left", "right"] },
     "art_style": { "enum": ["auto", "pixel_art", "retro_pixel", "pixel_inspired", "clean_hd", "project_native"] },
     "cell": {
       "type": "object",

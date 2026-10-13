@@ -1,0 +1,1 @@
+- Keep exactly this facing in every cell; do not turn the body toward a three-quarter angle.

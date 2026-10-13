@@ -1,4 +1,4 @@
-# template_version: action_prompt@3
+# template_version: action_prompt@4
 Create a 2x2 sprite animation grid of a 2D game character: idle breathing animation, 4 frames.
 
 REFERENCE IDENTITY
@@ -37,6 +37,7 @@ CONSISTENCY RULES
 - Identical character scale and camera distance in every cell.
 - The soles of the feet sit on the same horizontal baseline in every cell of a row.
 - Same facing direction (up) in every cell.
+- Keep exactly this facing in every cell; do not turn the body toward a three-quarter angle.
 - Full body visible in every cell. Nothing cropped.
 
 GRID RULES
