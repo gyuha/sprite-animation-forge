@@ -15,7 +15,8 @@ Public API
     Raises ``ForgeError`` if the assembled text fails ``validate_prompt``.
 ``PromptResult(text, template_version, references_needed, warnings)``
     ``references_needed``: ordered list of reference roles the caller must attach:
-    ``"character"`` (Image 1, the keyed reference) and, for a non-representative direction of a
+    ``"character"`` (Image 1, the keyed reference), ``"layout_guide"`` (a single still's second image: the safe-area guide,
+    docs/14; skipped with warning ``layout_guide_skipped`` when two references are already needed) and, for a non-representative direction of a
     multi-direction plan, ``"direction:<unit>"`` (Image 2), where ``<unit>`` is the unit whose adopted
     sheet to attach (``direction_reference_unit``), e.g. ``"direction:idle/down"``.
 ``direction_reference_unit(plan) -> str | None``   representative-direction unit (first body action
@@ -53,15 +54,19 @@ from functools import lru_cache
 from importlib import resources
 
 from .errors import ForgeError
+from .layout_guide import safe_area
 from .plan import DIRECTIONS_BY_VIEW, resolve_unit
 
-PROMPT_TEMPLATE_VERSION = "action_prompt@1"
+PROMPT_TEMPLATE_VERSION = "action_prompt@4"
+VIDEO_PROMPT_VERSION = "video_prompt@2"
+STILL_PROMPT_VERSION = "still_prompt@1"  # a single still prompt that attaches the layout guide (docs/14); the old still prompt keeps action_prompt@3
+HEADROOM_PCT = {"attack": 20, "jump": 20}  # actions whose poses reach above the standing head: empty cell height above it
 MAX_PROMPT_CHARS = 6000
 MAX_EXTRA_CHARS = 500
 EDGE_TOUCH_MARGIN_PCT = 15
 KEY_NAMES = {"#FF00FF": "magenta", "#00FF00": "pure green"}
 
-HEADINGS = ("REFERENCE IDENTITY", "DIRECTION REFERENCE", "ACTION", "ADDITIONAL DIRECTION", "RECOVERY",
+HEADINGS = ("REFERENCE IDENTITY", "DIRECTION REFERENCE", "LAYOUT GUIDE", "ACTION", "ADDITIONAL DIRECTION", "RECOVERY",
             "CONSISTENCY RULES", "GRID RULES", "BACKGROUND RULE")
 REQUIRED_HEADINGS = ("REFERENCE IDENTITY", "ACTION", "CONSISTENCY RULES", "GRID RULES", "BACKGROUND RULE")
 FOOTER = "No text. No watermark. No UI."
@@ -73,6 +78,7 @@ class PromptResult:
     template_version: str
     references_needed: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    margin_pct: int = 8  # the safe-area margin the prompt states (the layout guide image is drawn with the same one)
 
 
 # ---------------------------------------------------------------- template loading
@@ -99,6 +105,35 @@ def _sections(name: str) -> dict[str, dict[str, str]]:
         elif cur is not None:
             cur[""] = (cur[""] + "\n" + line) if "" in cur else line
     return out
+
+
+BASELINE_LINE = "- The soles of the feet sit on the same horizontal baseline in every cell of a row."
+
+
+def _baseline_line(plan: dict, action: str) -> str:
+    """Airborne actions (jump/fall) must show height changes, so they do not get the shared-baseline rule."""
+    from .plan import is_airborne
+    act = plan["actions"].get(action, {})
+    return "" if is_airborne(act, action) else BASELINE_LINE
+
+
+def _view_keep_line(direction: str) -> str:
+    """A front / back facing (down, up) must not drift toward a three-quarter view when redrawn from another picture."""
+    return _template("view_keep.txt") if direction in ("down", "up") else ""
+
+
+def _handed_line(plan: dict, direction: str) -> str:
+    """Which hand holds the item, and where that hand is in this facing; "" when the plan has no ``handed``."""
+    handed = plan.get("handed", "none")
+    if handed == "none":
+        return ""
+    rows = _sections("handed.txt")
+    if direction in ("right", "left"):  # a right-facing profile shows the character's right arm nearer the viewer
+        return rows["near" if direction == handed else "far"][""].format(handed=handed)
+    if direction in ("down", "up"):  # facing the viewer mirrors left/right on the image; facing away does not
+        side = (("left" if handed == "right" else "right") if direction == "down" else handed)
+        return rows["screen"][""].format(handed=handed, side=side)
+    return ""
 
 
 def _fill(name: str, **values) -> str:
@@ -196,7 +231,10 @@ def _sequence(action: str, act: dict, lib: dict | None, frames: int, loop: bool)
     return rules["oneshot_custom"][""].format(frames=frames)
 
 
-def _action_block(plan: dict, profile: dict | None, action: str, multi_direction: bool) -> str:
+LOCOMOTION_ACTIONS = ("walk", "run")
+
+
+def _action_block(plan: dict, profile: dict | None, action: str, multi_direction: bool, direction: str | None = None) -> str:
     act = plan["actions"][action]
     frames, loop = act["frames"], act["loop"]
     lib = MOTION_LIBRARY.get(action)
@@ -213,7 +251,13 @@ def _action_block(plan: dict, profile: dict | None, action: str, multi_direction
         sequence=_sequence(action, act, lib, frames, loop),
         loop_line=loop_line,
         in_place_line="" if act.get("kind") == "fx" else _template("action_in_place.txt"),
+        locomotion_line=_template("action_locomotion.txt").format(action=action) if action in LOCOMOTION_ACTIONS else "",
+        no_crossing_line=_template("action_no_crossing.txt") if action in LOCOMOTION_ACTIONS and direction in ("down", "up") else "",
     )
+
+
+def _still_block(title: str) -> str:
+    return _fill("action_still.txt", title=title.replace(" still pose", ""))
 
 
 def _recovery_block(codes: list[str], frames: int, key_hex: str, identity_fields) -> str:
@@ -227,6 +271,34 @@ def _recovery_block(codes: list[str], frames: int, key_hex: str, identity_fields
             phrases.append(table["phrase"][code].format(
                 frames=frames, key_name=_key_name(key_hex), key_hex=key_hex, fields=fields))
     return _fill("recovery_block.txt", phrases="\n".join(phrases))
+
+
+def build_video_prompt(plan: dict, profile: dict | None, action: str, extra: str | None = None) -> PromptResult:
+    """Prompt for ``method=video`` (docs/13): the video model animates the first frame (the keyed character on a key
+    colour canvas), so there is no grid / identity block, only the motion, loop and background rules. Walk and run move
+    *in place* in every view; a front or back view also gets its stepping words (small calm steps, which way they go)
+    unless the caller wrote their own ``motion`` (their gait is kept as written)."""
+    _, direction, _ = resolve_unit(plan, action, None)
+    act = plan["actions"][action]
+    lib = MOTION_LIBRARY.get(action)
+    weapon = ((profile or {}).get("identity", {}).get("weapon") or "").strip() or "weapon"
+    description = act.get("motion") or (lib["description"].format(weapon=weapon) if lib else None)
+    if description is None:
+        raise ForgeError("invalid_params", f"custom action {action!r} has no motion description")
+    extra = (extra or "").strip()
+    if len(extra) > MAX_EXTRA_CHARS:
+        raise ForgeError("invalid_params", f"extra is {len(extra)} chars; max {MAX_EXTRA_CHARS}")
+    key_hex = plan["key_color"].upper()
+    rows = _sections("video_locomotion.txt")
+    locomotion = action in LOCOMOTION_ACTIONS and act.get("kind") != "fx"
+    gait = rows.get(f"{action}_{direction}", {}).get("") if locomotion and not act.get("motion") else ""
+    blocks = [_fill("video.txt", title=(lib["title"] if lib else action.replace("_", " ")), description=description,
+                    locomotion_line=rows["inplace"][""].format(action=action) if locomotion else "", gait_line=gait or "",
+                    loop_line=_sections("video_loop_line.txt")["loop" if act["loop"] else "oneshot"][""],
+                    key_name=_key_name(key_hex), key_hex=key_hex)]
+    if extra:
+        blocks.append(_fill("additional_direction.txt", extra=extra))
+    return PromptResult("\n\n".join(blocks) + "\n", VIDEO_PROMPT_VERSION, ["character"], [])
 
 
 # ---------------------------------------------------------------- references
@@ -274,12 +346,17 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
     act = plan["actions"][action]
     frames = act["frames"]
     rows, cols = (int(x) for x in act["grid"].split("x"))
+    breathe = act.get("method", "grid") == "breathe"
+    if breathe:  # one still pose is generated; the output frames are produced by effects/breathe.py
+        frames, rows, cols = 1, 1, 1
     key_hex = plan["key_color"].upper()
     multi = len(plan["directions"]) > 1
     if "edge_touch" in codes:
         margin_pct = EDGE_TOUCH_MARGIN_PCT
     lib = MOTION_LIBRARY.get(action)
     title = (lib["title"] if lib else action.replace("_", " "))
+    if breathe:
+        title = f"{title} still pose"
 
     warnings = []
     if act.get("kind") == "fx":
@@ -287,6 +364,13 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
     refs = reference_images_needed(plan, action, direction)
     if _needs_direction_reference(plan, direction) and len(refs) == 1:
         warnings.append("no_representative_direction_unit")
+    guide = False
+    if breathe:  # a still is sized by a layout guide as the second reference; with two references already, skip it
+        guide = len(refs) == 1
+        if guide:
+            refs = [*refs, "layout_guide"]
+        else:
+            warnings.append("layout_guide_skipped")
 
     blocks = [
         _fill("header.txt", rows=rows, cols=cols, action_title=title, frames=frames),
@@ -294,17 +378,23 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
         _sections("art_style.txt")["style"][plan["art_style"]],
         _camera_block(plan, direction),
     ]
-    if len(refs) > 1:
+    if len(refs) > 1 and not guide:
         blocks.append(_template("direction_reference.txt"))
-    blocks.append(_action_block(plan, profile, action, multi))
+    if guide:
+        lo, hi, crown, floor = safe_area(margin_pct)
+        blocks.append(_fill("layout_guide.txt", key_name=_key_name(key_hex), key_hex=key_hex, lo=lo, hi=hi, crown=crown, floor=floor))
+    blocks.append(_still_block(title) if breathe else _action_block(plan, profile, action, multi, direction))
     if extra:
         blocks.append(_fill("additional_direction.txt", extra=extra))
     if codes:
         blocks.append(_recovery_block(codes, frames, key_hex, identity_fields))
     empty = rows * cols - frames
     blocks += [
-        _fill("consistency_rules.txt", facing=direction),
+        _fill("consistency_rules.txt", facing=direction, baseline_line=_baseline_line(plan, action),
+              view_keep_line=_view_keep_line(direction), handed_line=_handed_line(plan, direction)),
         _fill("grid_rules.txt", rows=rows, cols=cols, cells=rows * cols, margin_pct=margin_pct,
+              headroom_line=_template("grid_headroom.txt").format(pct=HEADROOM_PCT[action])
+              if action in HEADROOM_PCT and act.get("kind") != "fx" else "",
               empty_cells_line=_template("grid_empty_cells.txt").format(frames=frames, empty_cells=empty)
               if empty else ""),
         _fill("background_rule.txt", key_name=_key_name(key_hex), key_hex=key_hex),
@@ -314,7 +404,7 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
     problems = validate_prompt(text)
     if problems:
         raise ForgeError("invalid_prompt", "; ".join(problems))
-    return PromptResult(text, PROMPT_TEMPLATE_VERSION, refs, warnings)
+    return PromptResult(text, STILL_PROMPT_VERSION if guide else PROMPT_TEMPLATE_VERSION, refs, warnings, margin_pct)
 
 
 def build_canonical_prompt(description: str, *, art_style: str = "clean_hd", view: str = "side",

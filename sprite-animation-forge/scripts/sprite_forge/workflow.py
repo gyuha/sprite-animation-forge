@@ -63,7 +63,8 @@ from .fsutil import (
 )
 from .pipeline import PipelineError
 from .pipeline.chroma import KEY_MAGENTA, remove_background
-from .pipeline.process import process_sheet
+from .pipeline.process import process_breathe, process_sheet
+from .video_gait import jolt_warning
 from .pipeline.scale import ScaleProfile
 from . import recovery, schemas
 from .pipeline.measure import measure_frame
@@ -201,7 +202,8 @@ def load_scale_profile(cd) -> ScaleProfile | None:
 
 
 _ENUMS = {"anchor": ("feet", "bottom", "center"), "x_anchor": ("mass", "feet", "bbox"),
-          "scale_strategy": ("fit", "preserve"), "components": ("largest", "all")}
+          "scale_strategy": ("fit", "preserve"), "components": ("largest", "all"),
+          "align": ("register", "per_frame"), "resample_mode": ("coverage", "legacy")}
 _INTS = ("merge_gap_px", "min_area_px", "edge_band_px", "margin_top", "margin_side", "margin_bottom")
 _FLOATS = ("t_in", "t_out")
 
@@ -247,9 +249,19 @@ def process_attempt(cd, plan, action, direction, attempt=None, sets=None) -> dic
     with attempt_lock(adir):
         shutil.rmtree(adir / "frames", ignore_errors=True)  # derived output, rebuilt below
         try:
-            result = process_sheet(adir / "raw.png", adir, params, profile)
+            if act.get("method", "grid") == "breathe":
+                result = process_breathe(adir / "raw.png", adir, params, act["frames"], profile)
+            else:
+                result = process_sheet(adir / "raw.png", adir, params, profile)
         except PipelineError as exc:
             raise ForgeError(exc.code, str(exc)) from None
+        if act.get("method", "grid") == "video":  # warnings of the clip: the plan's jolt limit (none = no warning) and the loop repair
+            meta_file = adir / "video-meta.json"
+            meta = json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else None
+            extra = [w for w in (jolt_warning(meta, act.get("max_jolt")), *((meta or {}).get("warnings") or [])) if w]
+            result.data["warnings"] = [*result.data["warnings"], *extra]
+            result.data["restored"] = (meta or {}).get("restored", [])  # made frames put back from their source (docs/14), always present
+            (adir / "process.json").write_text(json.dumps(result.data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         report = run_qc(result, action=action, params=params, profile=profile, attempt=attempt,
                         loop=act["loop"], qc_profile=act.get("qc_profile"))
         entry = dict(mf.load(cd)["actions"].get(unit, {}))

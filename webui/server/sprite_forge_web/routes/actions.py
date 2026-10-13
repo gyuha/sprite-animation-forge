@@ -57,6 +57,7 @@ class AttemptFiles(BaseModel):
     clean: str | None
     sheet: str | None
     prompt: str | None
+    video: str | None = None  # raw.mp4 of a method=video attempt
     frames: list[str]
 
 
@@ -84,6 +85,7 @@ class AttemptSummary(BaseModel):
     score: int | float | None = None
     recovery: list[str] = []
     extra: str | None = None
+    prompt_version: str | None = None  # generation.json prompt_template_version (e.g. action_prompt@3)
     accepted: bool
     sheet: str | None
 
@@ -105,6 +107,8 @@ class AttemptDetail(BaseModel):
     generation: dict | None
     process: dict | None
     qc: dict | None
+    vision_review: dict | None = None  # vision-review.json: advisory Codex review of the frames (POST .../review)
+    video_meta: dict | None = None  # video-meta.json of a method=video attempt: loop cut, foot strike, jolt, size hold, held drawings
     files: AttemptFiles
 
 
@@ -144,6 +148,7 @@ def _files(cd: Path, cid: str, unit: str, aid: str) -> AttemptFiles:
     return AttemptFiles(
         raw=file_url(cd, cid, f"{base}/raw.png"), clean=file_url(cd, cid, f"{base}/clean.png"),
         sheet=file_url(cd, cid, f"{base}/sheet.png"), prompt=file_url(cd, cid, f"{base}/prompt.txt"),
+        video=file_url(cd, cid, f"{base}/raw.mp4"),
         frames=[file_url(cd, cid, f"{base}/frames/{p.name}") for p in frames])
 
 
@@ -162,7 +167,8 @@ def _attempt_dir(cd: Path, unit: str, aid: str) -> Path:
 
 def _summary(cd: Path, cid: str, unit: str, aid: str, ent: dict) -> AttemptSummary:
     row = ent.get("attempts", {}).get(aid, {})
-    return AttemptSummary(attempt=aid, accepted=ent.get("accepted_attempt") == aid,
+    version = (read_json(cd / unit / "attempts" / aid / "generation.json") or {}).get("prompt_template_version")
+    return AttemptSummary(attempt=aid, accepted=ent.get("accepted_attempt") == aid, prompt_version=version,
                           sheet=file_url(cd, cid, f"{unit}/attempts/{aid}/sheet.png"), **row)
 
 
@@ -214,7 +220,8 @@ def get_attempt(request: Request, cid: str, action: str, aid: str,
     return AttemptDetail(attempt=aid, unit=unit, accepted=ent.get("accepted_attempt") == aid,
                          summary=_summary(cd, cid, unit, aid, ent), generation=read_json(adir / "generation.json"),
                          process=read_json(adir / "process.json"), qc=read_json(adir / "qc-report.json"),
-                         files=_files(cd, cid, unit, aid))
+                         vision_review=read_json(adir / "vision-review.json"),
+                         video_meta=read_json(adir / "video-meta.json"), files=_files(cd, cid, unit, aid))
 
 
 @router.post(BASE + "/attempts/{aid}/process")

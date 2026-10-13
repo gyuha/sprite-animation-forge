@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from sprite_forge import generation, identity, workflow
+from sprite_forge import generation, identity, vision, workflow
 from sprite_forge.errors import ForgeError
 from sprite_forge.plan import load_plan, units
 
@@ -42,7 +42,8 @@ def generate_and_process(ctx: JobContext, cd: Path, plan: dict, profile: dict, a
                          extra: str | None, recovery: list[str]) -> tuple[str, dict]:
     """Generate one attempt, then process + QC it. Returns ``(attempt, qc)``."""
     out = generation.generate_unit(cd, plan, profile, action, direction, extra, recovery, codex_timeout(),
-                                   provider=ctx.provider)
+                                   provider=ctx.provider, video_provider=ctx.video_provider,
+                                   on_progress=ctx._provider_event)
     aid = out["attempt"]
     ctx.attempt(aid)
     ctx.stage("processing")
@@ -59,6 +60,33 @@ def action_generate(cd: Path, action: str, direction: str | None, extra: str | N
         plan = load_plan(cd)
         aid, qc = generate_and_process(ctx, cd, plan, identity.load_profile(cd), action, direction, extra, recovery)
         return {"attempt": aid, "qc_status": qc["status"], "accepted": False}
+
+    return run
+
+
+def video_resume(cd: Path, action: str, direction: str | None, attempt: str):
+    """Finish an unfinished ``method=video`` attempt by its request_id (nothing is submitted), then process + QC it."""
+    def run(ctx: JobContext) -> dict:
+        plan = load_plan(cd)
+        ctx.attempt(attempt)
+        generation.resume_video_unit(cd, plan, action, direction, attempt, codex_timeout(), video_provider=ctx.video_provider,
+                                     on_progress=ctx._provider_event)
+        ctx.stage("processing")
+        try:
+            res = workflow.process_attempt(cd, plan, action, direction, attempt)
+        except ForgeError as exc:
+            raise ForgeError(exc.code, exc.message, exc.exit_code, {**exc.extra, "attempt": attempt}) from None
+        ctx.stage("qc")
+        return {"attempt": attempt, "qc_status": res["qc"]["status"], "accepted": False}
+
+    return run
+
+
+def vision_review(cd: Path, action: str, direction: str | None, attempt: str):
+    def run(ctx: JobContext) -> dict:
+        ctx.stage("generating")
+        out = vision.review_attempt(cd, load_plan(cd), action, direction, attempt, codex_timeout(), provider=ctx.provider.inner)
+        return {"attempt": out["attempt"], "review": out["review"]}
 
     return run
 
@@ -91,9 +119,10 @@ def _run_unit(ctx: JobContext, cd: Path, plan: dict, profile: dict, unit: dict, 
     action, direction = unit["action"], unit["direction"] if len(plan["directions"]) > 1 else None
     row = {"unit": unit["unit"], "status": "review", "attempt": None, "qc_status": None}
     regenerations = 0
+    codes: list[str] = []  # regenerate recommendations of the previous failed attempt become recovery phrases
     while True:
         try:
-            aid, qc = generate_and_process(ctx, cd, plan, profile, action, direction, None, [])
+            aid, qc = generate_and_process(ctx, cd, plan, profile, action, direction, None, codes)
             row["attempt"] = aid
             reprocessed = 0
             while qc["status"] == "fail" and reprocessed < MAX_AUTO_REPROCESS and not ctx.canceled:
@@ -118,6 +147,7 @@ def _run_unit(ctx: JobContext, cd: Path, plan: dict, profile: dict, unit: dict, 
         if regenerations >= max_regenerations:
             return row
         regenerations += 1
+        codes = list(dict.fromkeys(r["code"] for r in qc["recommendations"] if r["type"] == "regenerate"))
 
 
 def batch_generate(cd: Path, todo: list[dict], auto_accept: bool, max_regenerations: int):

@@ -164,6 +164,16 @@ export function useGenerateAction() {
   })
 }
 
+/** Advisory Codex review of an attempt's motion (Job `vision_review`); the result appears in the attempt detail. */
+export function useReviewAttempt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ attempt, ...t }: UnitTarget & { attempt: string }) =>
+      apiJson<JobCreated>(unitUrl(t, `/attempts/${attempt}/review`), 'POST'),
+    onSuccess: ({ job }) => upsertJob(qc, job),
+  })
+}
+
 /** Manual raw sheet upload; the server processes it right away (same QC as a generated attempt). */
 export function useUploadRaw() {
   const qc = useQueryClient()

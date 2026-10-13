@@ -16,6 +16,7 @@
       "additionalProperties": false,
       "properties": { "left": { "const": "right" } }
     },
+    "handed": { "enum": ["none", "left", "right"] },
     "art_style": { "enum": ["auto", "pixel_art", "retro_pixel", "pixel_inspired", "clean_hd", "project_native"] },
     "cell": {
       "type": "object",
@@ -56,6 +57,7 @@
       "required": ["frames", "grid", "loop", "fps", "anchor", "x_anchor", "scale_strategy", "components"],
       "properties": {
         "kind": { "enum": ["body", "fx"] },
+        "method": { "enum": ["grid", "breathe", "video"] },
         "frames": { "type": "integer", "minimum": 2, "maximum": 16 },
         "grid": { "type": "string", "pattern": "^\\d+x\\d+$" },
         "loop": { "type": "boolean" },
@@ -67,6 +69,11 @@
         "qc_profile": { "enum": ["locomotion", "action", "airborne", "terminal", "fx"] },
         "motion": { "type": "string", "minLength": 1 },
         "poses": { "type": "array", "items": { "type": "string" } },
+        "cycles": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "min_len": { "type": "integer", "minimum": 2 },
+        "max_len": { "type": "integer", "minimum": 2 },
+        "max_jolt": { "type": "number", "minimum": 0 },
+        "repair": { "enum": ["auto", "on", "off"] },
         "directions": { "$ref": "#/$defs/directions" }
       }
     }

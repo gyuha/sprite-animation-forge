@@ -81,8 +81,22 @@ ASYMMETRY_WORDS = re.compile(r"\b(left|right|one[- ]sided|asymmetric\w*)\b", re.
 OVERRIDE_KEYS = {
     "kind": "str", "frames": "int", "grid": "str", "loop": "bool", "fps": "int", "anchor": "str",
     "x_anchor": "str", "scale_strategy": "str", "components": "str", "qc_profile": "str",
-    "motion": "str", "poses": "pipes", "directions": "csv",
+    "motion": "str", "poses": "pipes", "directions": "csv", "method": "str",
+    "cycles": "int", "min_len": "int", "max_len": "int", "max_jolt": "float", "repair": "str",  # method=video: loop cut hints (cycles in the cut, period window in source frames)
 }
+# generation method per action (.forge/CONTEXT.md "생성 방식"): grid = one sheet per call; breathe = one still +
+# deterministic breathing; video = generated clip converted to sprites (needs a connected video provider)
+HANDED = ("none", "left", "right")  # the character's own hand that holds an item; "none" = symmetric, mirror allowed
+METHODS = ("grid", "breathe", "video")
+REPAIR_MODES = ("auto", "on", "off")  # method=video walk/run loops: remake jump frames with RIFE (auto = only if found, on = require it)
+BREATHE_FRAMES = 6
+MANY_FRAMES = 8  # grid actions with this many frames or more get a `frames_many` warning in plan.assumptions
+
+
+def video_method_available() -> bool:
+    """True once a video provider is connected (docs/13-video-api-setup.md)."""
+    from .providers.video_factory import make_video_provider
+    return bool(make_video_provider().check()["configured"])
 
 
 def grid_for(frames: int) -> str:
@@ -111,6 +125,8 @@ def _coerce(key: str, raw: str):
     try:
         if kind == "int":
             return int(raw)
+        if kind == "float":
+            return float(raw)
         if kind == "bool":
             if raw.lower() in ("true", "yes", "1"):
                 return True
@@ -135,7 +151,12 @@ def parse_overrides(items) -> dict[str, dict]:
         action, key, raw = m.groups()
         if key not in OVERRIDE_KEYS:
             raise ForgeError("invalid_override", f"unknown key {key!r}; choose from {sorted(OVERRIDE_KEYS)}")
-        out.setdefault(action, {})[key] = _coerce(key, raw)
+        value = _coerce(key, raw)
+        if key == "repair" and value not in REPAIR_MODES:
+            raise ForgeError("invalid_override", f"repair={raw!r}; choose from {list(REPAIR_MODES)}")
+        if key == "method" and value not in METHODS:
+            raise ForgeError("invalid_override", f"method={raw!r}; choose from {list(METHODS)}")
+        out.setdefault(action, {})[key] = value
     return out
 
 
@@ -166,12 +187,22 @@ def _build_action(name: str, ov: dict) -> dict:
     action.update({k: v for k, v in ov.items() if k != "kind"})
     if "frames" in ov and "grid" not in ov:
         action["grid"] = grid_for(action["frames"])
+    method = action.setdefault("method", "grid")
+    if method == "video" and not video_method_available():
+        raise ForgeError("method_unavailable", f"{name}: method=video needs a connected video provider "
+                         "(see docs/13-video-api-setup.md)", EXIT_PRECONDITION)
+    if method == "breathe":
+        if kind == "fx":
+            raise ForgeError("invalid_params", f"{name}: method=breathe is only for body actions")
+        action["grid"] = "1x1"  # generation is one still pose; `frames` is the number of output frames
+        if "frames" not in ov:
+            action["frames"] = BREATHE_FRAMES
     # key order: stable, readable
-    order = ["kind", "frames", "grid", "loop", "fps", "anchor", "scale_strategy", "x_anchor",
-             "components", "qc_profile", "motion", "poses", "directions"]
+    order = ["kind", "method", "frames", "grid", "loop", "fps", "anchor", "scale_strategy", "x_anchor",
+             "components", "qc_profile", "motion", "poses", "directions", "cycles", "min_len", "max_len", "max_jolt", "repair"]
     action = {k: action[k] for k in order if k in action}
     r, c = (int(x) for x in action["grid"].split("x"))
-    if r * c < action["frames"] or r < 1 or c < 1:
+    if (r * c < action["frames"] and method != "breathe") or r < 1 or c < 1:
         raise ForgeError("invalid_params", f"{name}: grid {action['grid']} cannot hold {action['frames']} frames")
     return action
 
@@ -211,6 +242,7 @@ def build_plan(
     profile: dict | None = None,
     engine: str = "phaser",
     assumptions: list[str] | None = None,
+    handed: str | None = None,
 ) -> dict:
     overrides = overrides or {}
     unknown = sorted(set(overrides) - set(actions))
@@ -233,10 +265,19 @@ def build_plan(
     if facing_explicit and facing in ("right", "left", "up", "down") and facing not in dirs:
         raise ForgeError("invalid_params", f"facing={facing} is not in directions {dirs}")
 
+    handed = handed or "none"
+    if handed not in HANDED:
+        raise ForgeError("invalid_params", f"handed={handed!r}; choose from {HANDED}")
     can_mirror = "left" in dirs and "right" in dirs
     if mirror is True and not can_mirror:
         raise ForgeError("invalid_params", "--mirror needs both left and right in directions")
+    if mirror is True and handed != "none":
+        raise ForgeError("invalid_params", "--mirror cannot be combined with --handed: a mirrored view would put the item in the other hand")
     use_mirror = can_mirror and view == "topdown" if mirror is None else bool(mirror)
+    if handed != "none":
+        if use_mirror:
+            notes.append(f"손잡이({handed}): 좌측면을 반전하지 않고 직접 생성합니다 (생성 시간 증가)")
+        use_mirror = False
     mirror_map = {"left": "right"} if use_mirror else {}
 
     key_rgb, key_warnings = resolve_key_color(_profile_colors(profile))
@@ -252,6 +293,9 @@ def build_plan(
             notes.append("비대칭일 수 있습니다. 좌측면을 별도 생성할까요? (--no-mirror)")
 
     built = {name: _build_action(name, overrides.get(name, {})) for name in actions}
+    if len(dirs) > 1 and any(a.get("method") == "video" for a in built.values()):
+        raise ForgeError("invalid_params", "method=video supports single-direction plans only "
+                         "(a clip cannot turn the character to another direction)")
     for name, act in built.items():
         sub = act.get("directions")
         if sub is None:
@@ -282,6 +326,11 @@ def build_plan(
         "order": list(actions),
         "assumptions": notes,
     }
+    if handed != "none":  # absent = none, so plans without a hand are byte-identical to before
+        plan["handed"] = handed
+    for name, act in built.items():
+        if act.get("method", "grid") != "breathe" and act["frames"] >= MANY_FRAMES:
+            notes.append(f"frames_many: {name}: {act['frames']}프레임 - {MANY_FRAMES}프레임 이상은 칸 붕괴·중복 몸·빈 칸이 늘어납니다 (4~6프레임 권장)")
     try:
         schemas.validate("animation-plan", plan)
     except jsonschema.ValidationError as exc:
@@ -326,6 +375,12 @@ def resolve_unit(plan: dict, action: str, direction: str | None) -> tuple[str, s
     return f"{action}/{direction}", direction, False
 
 
+def is_airborne(act: dict, action: str) -> bool:
+    """jump/fall (QC profile airborne): the raw vertical travel is part of the animation."""
+    from .qc import PROFILE_BY_ACTION  # local import: qc imports the pipeline, plan must stay light
+    return (act.get("qc_profile") or PROFILE_BY_ACTION.get(action)) == "airborne"
+
+
 def process_params(plan: dict, action: str) -> ProcessParams:
     act = plan["actions"][action]
     rows, cols = (int(x) for x in act["grid"].split("x"))
@@ -337,6 +392,7 @@ def process_params(plan: dict, action: str) -> ProcessParams:
         key_color=_hex_to_rgb(plan["key_color"]),
         components=act["components"], anchor=act["anchor"], x_anchor=act["x_anchor"],
         scale_strategy=act["scale_strategy"], art_style=plan["art_style"],
+        preserve_vertical=is_airborne(act, action),
     )
 
 

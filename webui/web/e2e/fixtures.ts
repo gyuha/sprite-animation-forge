@@ -11,13 +11,13 @@ export { expect }
 export interface Server {
   url: string
   /** (re)starts `uv run sprite-forge-web` on the same port and root; FAKE_CODEX_MODE defaults to success */
-  start(mode?: string): Promise<void>
+  start(mode?: string, env?: Record<string, string>): Promise<void>
   /** SIGKILL of the server, its process group and every descendant (fake codex children) (a crash, no graceful shutdown) */
   kill(): Promise<void>
   /** setup / observation helpers that talk to the API directly (never used for the asserted UI flow) */
   api(path: string, init?: RequestInit): Promise<any>
   /** creates a character with the reference image, an analyzed identity and a plan for `bundle` */
-  seedCharacter(id: string, bundle: string, view?: 'side' | 'topdown'): Promise<void>
+  seedCharacter(id: string, bundle: string, view?: 'side' | 'topdown', set?: string[]): Promise<void>
   waitJob(jobId: string): Promise<any>
 }
 
@@ -86,7 +86,7 @@ export const test = base.extend<{ server: Server }>({
       url,
       api,
       waitJob,
-      async start(mode = 'success') {
+      async start(mode = 'success', extraEnv = {}) {
         child = spawn('uv', ['run', 'sprite-forge-web', '--port', String(port), '--root', root], {
           cwd: REPO_ROOT,
           detached: true, // own process group so kill() also reaches the codex children
@@ -98,19 +98,24 @@ export const test = base.extend<{ server: Server }>({
             FAKE_CODEX_DOCTOR: 'ok',
             FAKE_CODEX_MODE: mode,
             FAKE_CODEX_IMAGE: 'clean',
+            // never pick up the developer's real video credentials; a test opts in with SPRITE_FORGE_VIDEO_PROVIDER=fake
+            XAI_API_KEY: '',
+            SPRITE_FORGE_GROK_AUTH: join(tmp, 'no-grok-auth.json'),
+            SPRITE_FORGE_VIDEO_PROVIDER: '',
+            ...extraEnv,
           },
         })
         await waitUp(url, child)
       },
       kill,
-      async seedCharacter(id, bundle, view = 'side') {
+      async seedCharacter(id, bundle, view = 'side', set = []) {
         await post('/api/characters', { id, view, art_style: 'project_native', asset_type: 'character' })
         const form = new FormData()
         form.set('file', new Blob([readFileSync(REFERENCE_PNG)], { type: 'image/png' }), 'reference.png')
         await api(`/api/characters/${id}/reference`, { method: 'POST', body: form })
         const { job } = await post(`/api/characters/${id}/identity/analyze`)
         expect((await waitJob(job.id)).state).toBe('succeeded')
-        await post(`/api/characters/${id}/plan`, view === 'topdown' ? { actions: [bundle], view, directions: ['down', 'up', 'right', 'left'], mirror: true } : { bundle })
+        await post(`/api/characters/${id}/plan`, view === 'topdown' ? { actions: [bundle], view, directions: ['down', 'up', 'right', 'left'], mirror: true, set } : { bundle, set })
       },
     }
     await use(server)

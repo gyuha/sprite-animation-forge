@@ -4,3 +4,5 @@ ACTION
 {sequence}
 {loop_line}
 {in_place_line}
+{locomotion_line}
+{no_crossing_line}

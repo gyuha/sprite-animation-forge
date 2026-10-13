@@ -11,6 +11,7 @@ const ICON: Record<Grade, ReactNode> = {
   fail: <X className="size-4 text-destructive" />,
   info: <Info className="size-4 text-blue-500" />,
   not_run: <Minus className="size-4 text-muted-foreground" />,
+  skipped: <Minus className="size-4 text-muted-foreground" />,
 }
 
 interface Props { qc: { status: string; score: number; results: Record<string, unknown>[] } }
@@ -30,7 +31,7 @@ export function QcPanel({ qc }: Props) {
       </div>
       <ul className="space-y-1.5">
         {results.map((r) => (
-          <li key={r.id} className={cn('flex items-start gap-2 text-sm', r.grade === 'not_run' && 'text-muted-foreground')} data-testid={`qc-item-${r.id}`} data-grade={r.grade}>
+          <li key={r.id} className={cn('flex items-start gap-2 text-sm', (r.grade === 'not_run' || r.grade === 'skipped') && 'text-muted-foreground')} data-testid={`qc-item-${r.id}`} data-grade={r.grade}>
             <span className="mt-0.5" role="img" aria-label={GRADE_LABEL[r.grade]}>{ICON[r.grade]}</span>
             <span className="flex-1">{describeResult(r)}</span>
             <Tooltip>

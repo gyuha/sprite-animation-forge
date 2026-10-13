@@ -16,6 +16,14 @@ def test_api_core_health_ready(client):
     assert body["ready"] is True and body["codex"]["installed"] is True
 
 
+def test_api_core_health_reports_video_connection_without_affecting_ready(client, monkeypatch):
+    body = client.get("/api/health?refresh=1").json()
+    assert body["video"]["provider"] == "xai" and body["video"]["configured"] is False and body["ready"] is True
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    body = client.get("/api/health?refresh=1").json()
+    assert body["video"]["configured"] is True and body["video"]["auth"] == "env"
+
+
 def test_api_core_health_cache_and_refresh(make_client, monkeypatch):
     now = [100.0]
     client = make_client(clock=lambda: now[0])

@@ -85,6 +85,70 @@ describe('Plan', () => {
     expect(lastBody(fetchMock, 'POST', '/api/characters/hero/plan')).toMatchObject({ actions: ['idle', 'walk', 'attack'], set: ['walk.frames=8'], view: 'side' })
   })
 
+  it('offers a generation method per action: breathe is POSTed, video is disabled with its reason', async () => {
+    const fetchMock = mockApi(routes('side'))
+    renderPage()
+    await userEvent.click(await screen.findByTestId('action-toggle-idle'))
+    expect(screen.getByTestId('action-method-idle')).toHaveTextContent('격자')
+    expect(screen.getByTestId('action-method-video-hint')).toHaveTextContent('동영상 API가 연결되지 않았습니다')
+    await userEvent.click(screen.getByTestId('action-method-idle'))
+    expect(await screen.findByRole('option', { name: '동영상 (API)' })).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(screen.getByRole('option', { name: '호흡 (정지 1장)' }))
+    expect(screen.getByTestId('action-grid-idle')).toBeDisabled() // a still is always 1x1
+    expect(screen.getByTestId('action-frames-idle')).toHaveValue(6)
+    await userEvent.click(screen.getByTestId('plan-save'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(true))
+    expect(lastBody(fetchMock, 'POST', '/api/characters/hero/plan').set).toContain('idle.method=breathe')
+  })
+
+  it('enables the video method once a provider is connected and POSTs it', async () => {
+    const presets = makePresets()
+    presets.methods = { ...presets.methods!, video: { available: true, reason: null } }
+    const fetchMock = mockApi(routes('side', { 'GET /api/presets': presets }))
+    renderPage()
+    await userEvent.click(await screen.findByTestId('action-toggle-walk'))
+    expect(screen.queryByTestId('action-method-video-hint')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByTestId('action-method-walk'))
+    expect(await screen.findByRole('option', { name: '동영상 (API)' })).not.toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(screen.getByRole('option', { name: '동영상 (API)' }))
+    await userEvent.click(screen.getByTestId('plan-save'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(true))
+    expect(lastBody(fetchMock, 'POST', '/api/characters/hero/plan').set).toContain('walk.method=video')
+  })
+
+  it('disables the video method for a multi-direction (topdown) plan with the reason', async () => {
+    const presets = makePresets()
+    presets.methods = { ...presets.methods!, video: { available: true, reason: null } }
+    mockApi(routes('topdown', { 'GET /api/presets': presets }))
+    renderPage()
+    await userEvent.click(await screen.findByTestId('direction-right'))
+    await userEvent.click(screen.getByTestId('direction-down'))
+    await userEvent.click(await screen.findByTestId('action-toggle-walk'))
+    expect(screen.getByTestId('action-method-video-hint')).toHaveTextContent('방향이 하나인 플랜')
+  })
+
+  it('a hand holding an item turns the mirror off and is POSTed with the plan', async () => {
+    const fetchMock = mockApi(routes('topdown'))
+    renderPage()
+    expect(await screen.findByTestId('mirror-switch')).toBeChecked()
+    await userEvent.click(screen.getByTestId('plan-handed'))
+    await userEvent.click(await screen.findByRole('option', { name: '오른손에 소지품' }))
+    expect(screen.getByTestId('mirror-switch')).not.toBeChecked()
+    expect(screen.getByTestId('mirror-switch')).toBeDisabled()
+    expect(screen.getByTestId('mirror-off-note')).toBeInTheDocument()
+    await userEvent.click(screen.getByTestId('plan-save'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(true))
+    expect(lastBody(fetchMock, 'POST', '/api/characters/hero/plan')).toMatchObject({ handed: 'right', mirror: false })
+  })
+
+  it('does not send a hand when none is chosen', async () => {
+    const fetchMock = mockApi(routes('side'))
+    renderPage()
+    await userEvent.click(await screen.findByTestId('plan-save'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, i]) => i?.method === 'POST')).toBe(true))
+    expect(lastBody(fetchMock, 'POST', '/api/characters/hero/plan')).not.toHaveProperty('handed')
+  })
+
   it('warns when a character colour conflicts with the magenta key colour', async () => {
     mockApi(routes('side', { 'GET /api/characters/hero/identity': identity(['#E000E0']) }))
     renderPage()

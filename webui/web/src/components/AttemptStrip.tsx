@@ -67,6 +67,9 @@ export function AttemptStrip({ attempts, selected, onSelect, onAccept, acceptDis
                     {a.qc_status ?? '처리 전'}{a.score != null && ` ${a.score}`}
                   </Badge>
                 )}
+                {a.prompt_version && (
+                  <span className="text-xs text-muted-foreground" data-testid={`attempt-prompt-version-${a.attempt}`}>{a.prompt_version}</span>
+                )}
               </button>
             )
             return hint ? (

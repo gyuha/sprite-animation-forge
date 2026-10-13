@@ -1,4 +1,4 @@
 DIRECTION REFERENCE
-- The second attached image shows the same character from another direction.
+- The second attached image shows one single pose of the same character from another direction.
 - Keep the identical proportions, clothing, colors, equipment, and art style.
 - Redraw only what the new facing direction reveals (for example the back of the cloak or the side profile). Do not redesign the character.

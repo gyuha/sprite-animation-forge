@@ -1,6 +1,6 @@
 /** QC report presentation (docs/06 2, 6). The server types results/recommendations as plain dicts. */
 
-export type Grade = 'pass' | 'warn' | 'fail' | 'info' | 'not_run'
+export type Grade = 'pass' | 'warn' | 'fail' | 'info' | 'not_run' | 'skipped'
 export interface QcResult { id: string; grade: Grade; value?: number; message?: string }
 export type RecommendationType = 'reprocess' | 'regenerate' | 'force_accept'
 export interface Recommendation {
@@ -22,9 +22,13 @@ export const QC_NAMES: Record<string, { name: string; meaning: string }> = {
   'QC-07': { name: '캐릭터 크기', meaning: 'idle 기준 캐릭터 높이 대비 비율' },
   'QC-08': { name: 'Reference 일관성', meaning: '아직 자동 검사하지 않음 (직접 확인)' },
   'QC-09': { name: '배경 키 일치', meaning: '생성된 배경색과 키 색의 거리' },
+  'QC-10': { name: '루프 이음새', meaning: '마지막→첫 프레임 차이 ÷ 평균 프레임 간 차이. 1 안팎이면 자연스럽게 이어지고 2를 넘으면 튐' },
+  'QC-11': { name: '실루엣 연속성', meaning: '인접 프레임 실루엣이 겹치는 비율의 최솟값. 낮으면 포즈가 순간이동하듯 바뀜' },
+  'QC-12': { name: '색 일관성', meaning: '프레임 색 분포가 전체 중앙값과 겹치는 비율의 최솟값. 낮으면 어떤 프레임의 색이 달라짐' },
+  'QC-13': { name: '움직임 크기', meaning: '프레임 사이 변화량. 너무 작으면 거의 멈춘 애니메이션' },
 }
 
-export const GRADE_LABEL: Record<Grade, string> = { pass: '통과', warn: '검토', fail: '실패', info: '참고', not_run: '미실행' }
+export const GRADE_LABEL: Record<Grade, string> = { pass: '통과', warn: '검토', fail: '실패', info: '참고', not_run: '미실행', skipped: '해당 없음' }
 export const STATUS_LABEL: Record<string, string> = { pass: '통과', warn: '검토 필요', fail: '실패' }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
@@ -39,6 +43,10 @@ export function describeResult(r: QcResult): string {
     case 'QC-03': return `${name} 편차 ${r.value}px`
     case 'QC-04': return `${name} 편차 ${Math.round(r.value * 10) / 10}px`
     case 'QC-07': return `${name} idle 대비 ${pct(r.value)}`
+    case 'QC-10': return `${name} 비율 ${Math.round(r.value * 100) / 100}`
+    case 'QC-11': return `${name} ${pct(r.value)}`
+    case 'QC-12': return `${name} ${pct(r.value)}`
+    case 'QC-13': return `${name} ${Math.round(r.value * 1000) / 10}%`
     default: return `${name} ${r.value}`
   }
 }
@@ -46,6 +54,7 @@ export function describeResult(r: QcResult): string {
 export const REPROCESS_LABEL: Record<string, string> = {
   use_preserve: '크기 유지로 재처리',
   use_fit: '맞춤 크기로 재처리',
+  align_per_frame: '프레임별 정렬로 재처리',
   anchor_bottom: '기준점을 바닥으로 재처리',
   tighter_merge: '조각 병합 거리를 줄여 재처리',
 }
@@ -58,6 +67,7 @@ export const REGENERATE_LABEL: Record<string, string> = {
   bg_mismatch: '배경색 지정으로 재생성',
   duplicate_frames: '동작을 크게 재생성',
   identity_drift: '외형 유지 문구로 재생성',
+  loop_closure: '루프가 이어지게 재생성',
 }
 
 export function recommendationLabel(r: Recommendation): string {

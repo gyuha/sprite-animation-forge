@@ -79,11 +79,11 @@ Do not redesign, add, or remove any part of the character.
 | `right` | `character facing right, profile. Only the right side of the body is visible.` |
 | `left` (`mirror={}`일 때만) | `character facing left, profile. Only the left side of the body is visible.` |
 
-대표 방향이 아닌 unit에는 CAMERA 바로 뒤에 `DIRECTION REFERENCE` 블록을 넣고, 대표 방향 sheet를 추가 reference로 첨부한다.
+대표 방향이 아닌 unit에는 CAMERA 바로 뒤에 `DIRECTION REFERENCE` 블록을 넣고, 대표 방향의 **채택 결과 프레임 1장**(`frames/000.png`을 키 색 배경에 얹어 ~512px로 키운 것)을 추가 reference로 첨부한다. 포즈가 여러 개 담긴 sheet를 참조로 주면 방향 고정이 흐려진다는 sprite-gen의 실측을 따랐다.
 
 ```text
 DIRECTION REFERENCE
-- The second attached image shows the same character from another direction.
+- The second attached image shows one single pose of the same character from another direction.
 - Keep the identical proportions, clothing, colors, equipment, and art style.
 - Redraw only what the new facing direction reveals (for example the back of the cloak or the side profile). Do not redesign the character.
 ```
@@ -104,6 +104,8 @@ Frame sequence:
 {loop_line}
 Animate in place: the character does not travel across the cell.
 ```
+
+`walk`·`run`에는 `Animate in place` 뒤에 한 줄을 더 붙인다: `Show the {action} as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.` 방향이 `down`·`up`(정면·후면)이면 `Seen from this angle, the steps pass beside each other under the body; the feet never cross.`도 붙인다. (sprite-gen의 동영상 프롬프트 실측 요령을 이미지 프롬프트에 의역해 옮긴 것이며, 이미지 생성에서 실제로 효과가 있는지는 실제 Codex로 비교해 확인해야 한다.)
 
 `loop_line`은 loop 액션이면 `The last frame must flow seamlessly back into frame 1.`, 아니면 `This is a one-shot animation; frame {n} is the final pose.`이다.
 
@@ -342,6 +344,7 @@ Frame sequence:
 6. passing (opposite leg)
 The last frame must flow seamlessly back into frame 1.
 Animate in place: the character does not travel across the cell.
+Show the walk as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.
 
 CONSISTENCY RULES
 - Identical character scale and camera distance in every cell.
@@ -376,3 +379,54 @@ Prompt Generator 단위 테스트는 다음을 보장한다.
 - `frames < rows × cols`면 빈 칸 규칙이 들어간다
 - 복구 코드 `edge_touch`면 margin 문구가 15%가 된다
 - 전체 길이 6,000자 이하
+
+---
+
+## 9. 동영상 방식(`method=video`) 프롬프트
+
+동영상 방식은 격자 시트 프롬프트(§3)를 쓰지 않는다. 동영상 모델은 **첫 프레임 이미지**(키 색 캔버스에 캐릭터를 가운데 약 60% 높이로 배치한 `first-frame.png`)를 움직이므로, 프롬프트에는 동작·반복·배경 규칙만 들어간다. 생성기는 `prompt.build_video_prompt`, 템플릿은 `prompt_templates/video.txt`·`video_loop_line.txt`, 버전은 `video_prompt@2`(`generation.json`의 `prompt_template_version`)이다.
+
+```
+Animate this exact character in place: <title>.
+<motion description (MOTION_LIBRARY 또는 plan의 motion)>
+<loop 줄: 같은 포즈로 끝나는 이음새 없는 반복 | 한 번 수행 후 시작 포즈로 복귀>
+정지 카메라(줌·팬·컷 없음), 캐릭터는 제자리, 키 색 배경은 모든 프레임에서 평평하게 유지, 디자인·색·비율·화풍은 첫 프레임과 동일
+[ADDITIONAL DIRECTION <extra>]
+```
+
+- `idle`과 one-shot 액션은 마지막 프레임도 첫 프레임으로 고정해 요청한다(provider가 지원하는 경우). walk/run 같은 반복 액션은 고정하지 않고 주기 검출로 이음새를 고른다.
+- 방향이 둘 이상인 plan에서는 쓸 수 없다(`invalid_params`): 클립은 첫 프레임이 향한 방향을 바꾸지 못한다.
+- 클립 → `raw.png` 변환 규칙(주기·구간 선택, N프레임 축소, 배경 정규화)은 `video_loop.py`·`video_sprite.py` 모듈 docstring에 있다. 변환 결과 시트는 기존 파이프라인(§5 docs/05)을 그대로 거친다.
+
+---
+
+## 10. 레이아웃 가이드와 안전 영역 (정지 1장 생성)
+
+`method=breathe`처럼 **정지 1장**을 만들 때는 두 번째 참조 이미지로 레이아웃 가이드를 붙인다(`layout_guide.make_layout_guide`). 키 색 정사각 캔버스에 (1) 안전 영역 윤곽(가로·세로 `m%`~`100-m%`), (2) 머리 선(위에서 `2m%`), (3) 발 선(위에서 `100-2m%`)을 그린 이미지다. `m`은 프롬프트의 여백 수치와 같다(기본 8, `edge_touch` 복구 시 15). 프롬프트에는 같은 수치를 문장으로 적고(`LAYOUT GUIDE` 블록: "second attached image is a layout guide ... 8% to 92% ... 16% from the top ... 84% from the top"), 가이드의 선과 윤곽을 결과에 그리지 말라고 못 박는다.
+
+- 참조 이미지는 최대 2장이므로 이미 2장이 필요한 정지(다중 방향 플랜의 비대표 방향)에는 가이드를 붙이지 않고 `layout_guide_skipped` 경고를 낸다. 이때 프롬프트는 이전과 바이트 동일하다.
+- 가이드를 붙인 정지 프롬프트의 버전은 `still_prompt@1`, 그 외는 `action_prompt@4`이다(`generation.json`의 `prompt_template_version`).
+- `generation.json`의 참조에는 `layout-guide`가 기록되고, attempt 폴더의 `ref-02.png`가 그 이미지다.
+
+---
+
+## 11. 머리 위 여유 · 앞/뒷모습 유지 · 손잡이 (`action_prompt@4`)
+
+`action_prompt@3`에서 `@4`로 올리며 세 가지가 프롬프트에 들어갔다. 해당하지 않는 프롬프트(예: 측면 걷기·idle)는 버전 줄 말고는 이전과 같다.
+
+| 항목 | 조건 | 들어가는 줄 (위치) |
+|---|---|---|
+| 머리 위 여유 | 액션이 `attack`·`jump` (`kind=fx` 제외) | GRID RULES: `Leave at least 20% of the cell height empty above the head of the standing character: raised arms, weapons and jumps need that room.` 옆 여백 규칙(8%·복구 시 15%)은 그대로 둔다 |
+| 앞/뒷모습 유지 | 방향이 `down` 또는 `up` (topdown의 두 방향, front·rear 시점) | CONSISTENCY RULES: `Keep exactly this facing in every cell; do not turn the body toward a three-quarter angle.` 다른 그림에서 다시 그려도 정면·뒷면이 3/4로 돌아가지 않게 한다 |
+| 손잡이 | plan에 `handed: "left"\|"right"` | CONSISTENCY RULES: 측면(`right`/`left`)은 소지품 손이 **보는 쪽에서 가까운 팔인지 먼 팔인지**(오른쪽을 보는 측면은 캐릭터의 오른팔이 가깝다), 앞/뒷모습(`down`/`up`)은 그 손이 **이미지의 어느 쪽**에 있는지(정면이면 좌우가 뒤집힌다) |
+
+머리 위 여유가 plan 여백(px)을 바꾸지 않는 이유: 후처리는 측정한 bbox에 맞춰 `fit` 배율로 셀 안에 넣으므로, 생성된 시트에 머리 위 공간이 더 있어도 출력 셀의 여백 체계(`margin.top` 8px)는 그대로다. 여유는 *생성 쪽*의 문제(팔·무기가 칸 위로 잘리지 않게)다.
+
+`handed`: plan의 선택 필드(`none` | `left` | `right`, 없으면 `none`). 값이 있으면 좌우 미러(`mirror: {"left": "right"}`)를 끄고 왼쪽 방향을 별도 unit으로 생성한다(미러하면 소지품이 반대 손으로 옮겨지기 때문). `--mirror`를 명시하면 오류(`invalid_params`)다. CLI `plan --handed left|right|none`, 계획 화면의 "손잡이" 선택이 같은 값을 쓴다.
+
+### 9.1 시점별 걷기·달리기와 첫 프레임 캔버스 (`video_prompt@2`)
+
+- **제자리**: 걷기·달리기는 모든 시점에서 "트레드밀처럼 제자리에서 자연스럽게, 바닥은 흐르지 않는다" 줄이 들어간다(`video_locomotion.txt`의 `inplace`).
+- **앞/뒷모습 걸음 문구**: 방향이 `down`이면 "작고 차분한 걸음, 발을 카메라 쪽으로 내차지 않음, 몸은 곧게 카메라와 정면, 곧장 viewer 쪽으로", `up`이면 "…발을 옆으로 내차지 않음…곧장 viewer에게서 멀어짐". 달리기는 "다리가 몸 아래에 머문다"와 방향. 측면은 이 줄이 없다.
+- **호출자의 걸음걸이**: plan 액션에 `motion`을 직접 쓰면 그 문구가 그대로 쓰이고 위 걸음 문구는 붙이지 않는다(제자리 줄은 유지).
+- **첫 프레임 캔버스**(`video_sprite.canvas_layout`): 위 여백·캐릭터 높이(캔버스 비율) — walk·run `(0.06, 0.80)`(머리 위 여유 없이 크게), attack·jump `(0.30, 0.55)`(든 무기를 위한 머리 위 공간), 그 외는 가운데 60%(기존). 값은 우리 합성 캐릭터로 잘림 없음을 확인한 것이며 sprite-gen의 수치와 같지는 않다(그쪽은 정지 그림 위 20% 행을 따로 확장).

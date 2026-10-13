@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { makePresets } from '@/test-fixtures'
 import {
-  buildCreateRequest, countUnits, detectBundle, estimateSeconds, expandBundle, formatDuration, withView, type PlanDraft,
+  actionValues, buildCreateRequest, countUnits, detectBundle, estimateSeconds, expandBundle, formatDuration, withView, type PlanDraft,
 } from './plan'
 
 const presets = makePresets()
@@ -61,5 +61,21 @@ describe('buildCreateRequest', () => {
     expect(buildCreateRequest(d, presets)).toMatchObject({ bundle: 'topdown-rpg', directions: ['down', 'up', 'right', 'left'], mirror: true })
     // left unchecked: mirror cannot apply even though the switch value is still true
     expect(buildCreateRequest({ ...d, directions: ['down', 'right'] }, presets)).toMatchObject({ directions: ['down', 'right'], mirror: false })
+  })
+})
+
+describe('generation method (grid | breathe | video)', () => {
+  it('defaults to grid and keeps the preset grid', () => {
+    expect(actionValues('idle', draft(), presets)).toMatchObject({ method: 'grid', frames: 4, grid: '2x2' })
+  })
+
+  it('breathe generates one still (1x1) and defaults to six output frames, unless frames are edited', () => {
+    expect(actionValues('idle', draft({ edits: { idle: { method: 'breathe' } } }), presets)).toMatchObject({ method: 'breathe', frames: 6, grid: '1x1' })
+    expect(actionValues('idle', draft({ edits: { idle: { method: 'breathe', frames: 8 } } }), presets)).toMatchObject({ frames: 8, grid: '1x1' })
+  })
+
+  it('sends method through --set (never for grid) and no grid override for breathe', () => {
+    const body = buildCreateRequest(draft({ edits: { idle: { method: 'breathe', grid: '2x2' }, walk: { method: 'grid', fps: 12 } } }), presets)
+    expect(body.set).toEqual(['idle.method=breathe', 'walk.fps=12'])
   })
 })

@@ -1,0 +1,10 @@
+[inplace]
+Show the {action} in place, as if on a treadmill: the body stays at the same spot while the legs and arms move through a natural {action}, and the ground does not scroll.
+[walk_down]
+Take small, calm steps: the feet never kick out toward the camera, the body stays upright and square to the camera, and the character walks straight toward the viewer.
+[walk_up]
+Take small, calm steps: the feet never kick out to the sides, the body stays upright and square, and the character walks straight away from the viewer.
+[run_down]
+Run straight toward the viewer with quick steps; the legs stay under the body and the feet never swing out toward the camera.
+[run_up]
+Run straight away from the viewer with quick steps; the legs stay under the body and the feet never swing out to the sides.

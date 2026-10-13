@@ -2,6 +2,7 @@
  * S7 상태. data-testid:
  *   status-check-<install|version|login|feature|home|python>   Codex 진단 항목 (data-ok=true|false). 실패하면 해결 명령과 복사 버튼:
  *     status-fix-<name>, status-copy-<name>
+ *   status-video                    동영상 방식(선택) 연결 상태 (data-ok=true|false, 안 되어 있어도 오류 아님), 미연결 시 안내 status-video-hint
  *   status-recheck                  "다시 확인" — GET /api/health?refresh=1 (서버 60초 캐시 무시)
  *   status-contract-hint            검증 버전과 현재 Codex 버전이 다를 때: 계약 테스트 실행 안내 (status-copy-contract)
  *   status-server                   서버 연결 / 진행 중 작업 수
@@ -139,6 +140,24 @@ export default function Status() {
             </div>
           </AlertDescription>
         </Alert>
+      )}
+
+      {h?.video && (
+        <Card>
+          <CardHeader><CardTitle>동영상 방식 (선택)</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2" data-testid="status-video" data-ok={h.video.configured}>
+              {h.video.configured ? <Check className="size-4 text-green-600" aria-label="연결됨" /> : <X className="size-4 text-muted-foreground" aria-label="연결 안 됨" />}
+              <span className="font-medium">{h.video.provider}</span>
+              <span className="text-muted-foreground">{h.video.configured ? `연결됨 (${h.video.auth})` : '연결 안 됨'}</span>
+            </div>
+            {!h.video.configured && (
+              <p className="text-xs text-muted-foreground" data-testid="status-video-hint">
+                이미지 방식만 쓸 거라면 필요 없습니다. 동영상 방식을 쓰려면 docs/13-video-api-setup.md 를 따라 연결하세요.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <Card>

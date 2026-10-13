@@ -1,0 +1,4 @@
+ACTION
+A single still pose of the character in a relaxed {title} stance: arms relaxed, weight evenly on both feet, neutral expression, nothing in motion.
+Draw exactly one pose. Do not draw a sequence, motion lines, or a second copy of the character.
+Keep the character in place.

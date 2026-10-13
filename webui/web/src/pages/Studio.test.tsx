@@ -110,6 +110,38 @@ describe('Studio direction tabs', () => {
   })
 })
 
+describe('Studio vision review', () => {
+  const review = { schema_version: 1, attempt: '001', unit: 'idle', frames: 4, review: {
+    loop: { ok: true, note: '이어짐' }, limbs: { ok: true, note: '번갈아 움직임' }, identity: { ok: true, note: '일치' }, overall: 'pass', summary: '자연스럽습니다.' } }
+
+  it('starts the advisory review as a Job for the selected attempt', async () => {
+    const fetchMock = mockApi(unitRoutes({ extra: { 'POST /api/characters/hero/actions/idle/attempts/001/review': { job: makeJob({ type: 'vision_review', direction: null }), attempt: null } } }))
+    renderStudio('/c/hero/studio/idle')
+    await userEvent.click(await screen.findByTestId('vision-review-button'))
+    await waitFor(() => expect(calls(fetchMock, 'POST')).toEqual(['/api/characters/hero/actions/idle/attempts/001/review']))
+    expect(await screen.findByTestId('job-job_1')).toHaveTextContent('비전 심사')
+  })
+
+  it('shows a saved review from the attempt detail', async () => {
+    const base = unitRoutes()
+    const detail = base['GET /api/characters/hero/actions/idle/attempts/001'] as Record<string, unknown>
+    mockApi({ ...base, 'GET /api/characters/hero/actions/idle/attempts/001': { ...detail, vision_review: review } })
+    renderStudio('/c/hero/studio/idle')
+    expect(await screen.findByTestId('vision-review-overall')).toHaveAttribute('data-overall', 'pass')
+    expect(screen.getByTestId('vision-review-summary')).toHaveTextContent('자연스럽습니다.')
+  })
+
+  it('is not offered for a mirror-derived direction', async () => {
+    mockApi(unitRoutes({
+      view: 'topdown', attempts: [],
+      extra: { 'GET /api/characters/hero/actions/idle/attempts': { action: 'idle', direction: 'left', unit: 'idle/left', mirror_of: 'idle/right', accepted_attempt: null, attempts: [] } },
+    }))
+    renderStudio('/c/hero/studio/idle/left')
+    await canvas()
+    expect(screen.queryByTestId('vision-review-button')).not.toBeInTheDocument()
+  })
+})
+
 describe('Studio shortcuts', () => {
   it('Space toggles playback and arrows step frames, but typing in the extra-instruction textarea triggers nothing', async () => {
     const fetchMock = mockApi(unitRoutes({ qc: 'pass' }))
@@ -176,7 +208,7 @@ describe('Studio actions', () => {
     await waitFor(() => expect(player.getAttribute('data-version')).not.toBe(before))
     expect(player.getAttribute('data-version')).toContain('b0') // preview now uses the new file hashes, from the response alone
     expect(lastBody(fetchMock, 'POST', '/api/characters/hero/actions/idle/attempts/001/process')).toEqual({
-      set: { anchor: 'feet', x_anchor: 'mass', scale_strategy: 'preserve', components: 'largest', merge_gap_px: 13, t_in: 30, t_out: 90, despill: true, edge_band_px: 2, margin_top: 8, margin_side: 8, margin_bottom: 10 },
+      set: { align: 'register', anchor: 'feet', x_anchor: 'mass', scale_strategy: 'preserve', components: 'largest', merge_gap_px: 13, t_in: 30, t_out: 90, despill: true, edge_band_px: 2, margin_top: 8, margin_side: 8, margin_bottom: 10 },
     })
     expect(screen.getByTestId('qc-status')).toHaveAttribute('data-status', 'warn')
     expect(calls(fetchMock, 'GET').filter((u) => u.endsWith('/attempts/001'))).toHaveLength(1) // no refetch needed

@@ -56,6 +56,7 @@ class PlanCreate(BaseModel):
     facing: str | None = None
     directions: list[Direction] | None = None
     mirror: bool | None = None
+    handed: Literal["none", "left", "right"] | None = None
 
 
 class PlanUpdate(BaseModel):
@@ -77,7 +78,7 @@ def create_plan(request: Request, cid: str, body: PlanCreate) -> PlanResponse:
     args = SimpleNamespace(
         cid=cid, root=str(root_of(request)), actions=",".join(body.actions) if body.actions else None,
         bundle=body.bundle, sets=body.set, cell=body.cell, view=body.view, facing=body.facing,
-        directions=",".join(body.directions) if body.directions else None, mirror=body.mirror)
+        directions=",".join(body.directions) if body.directions else None, mirror=body.mirror, handed=body.handed)
     return _response(cli.cmd_plan(args)["plan"])
 
 
@@ -106,14 +107,18 @@ def _check_invariants(cid: str, plan: dict) -> None:
     def bad(msg):
         return ForgeError("invalid_params", msg)
 
+    if plan.get("handed", "none") != "none" and plan.get("mirror"):
+        raise bad("a plan with handed cannot mirror left from right: the item would change hands")
     if plan["character"] != cid:
         raise bad(f"plan.character {plan['character']!r} does not match {cid!r}")
+    if len(plan["directions"]) > 1 and any(a.get("method") == "video" for a in plan["actions"].values()):
+        raise bad("method=video supports single-direction plans only")
     if sorted(plan["order"]) != sorted(plan["actions"]) or len(set(plan["order"])) != len(plan["order"]):
         raise bad("order must list every action exactly once")
     dirs = plan["directions"]
     for name, act in plan["actions"].items():
         r, c = (int(x) for x in act["grid"].split("x"))
-        if r * c < act["frames"]:
+        if r * c < act["frames"] and act.get("method", "grid") != "breathe":
             raise bad(f"{name}: grid {act['grid']} cannot hold {act['frames']} frames")
         if not set(act.get("directions", dirs)) <= set(dirs):
             raise bad(f"{name}: directions not a subset of {dirs}")

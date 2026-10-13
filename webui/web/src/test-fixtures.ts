@@ -20,6 +20,7 @@ export function makePresets(): Presets {
     },
     grids: { '2': '1x2', '4': '2x2', '6': '2x3', '8': '2x4', '9': '3x3', '16': '4x4' },
     views: ['side', 'topdown'], asset_types: ['character'], art_styles: ['auto'], directions: ['right', 'left', 'up', 'down'],
+    methods: { grid: { available: true, reason: null }, breathe: { available: true, reason: null }, video: { available: false, reason: '동영상 API가 연결되지 않았습니다' } },
   }
 }
 

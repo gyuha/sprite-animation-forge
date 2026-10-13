@@ -29,7 +29,7 @@ import sys
 import traceback
 from pathlib import Path
 
-from . import __version__, generation, identity, workflow
+from . import __version__, generation, identity, vision, workflow
 from . import manifest as mf
 from .doctor import run_doctor
 from .export import export_character
@@ -164,6 +164,8 @@ def _plan_args(p):
     p.add_argument("--directions", help="comma separated, e.g. down,up,right,left")
     p.add_argument("--mirror", dest="mirror", action="store_const", const=True, default=None)
     p.add_argument("--no-mirror", dest="mirror", action="store_const", const=False)
+    p.add_argument("--handed", choices=("none", "left", "right"), default=None,
+                   help="the character's hand that holds an item: the left/right mirror is turned off and left is generated")
 
 
 @command("plan", args=_plan_args)
@@ -188,7 +190,7 @@ def cmd_plan(args):
         args.cid, names, view=view, asset_type=settings.get("asset_type", "character"),
         art_style=settings.get("art_style", "auto"), has_reference=m["reference"] is not None,
         facing=args.facing, directions=dirs, mirror=args.mirror, cell=args.cell,
-        overrides=parse_overrides(args.sets), profile=profile, assumptions=notes,
+        overrides=parse_overrides(args.sets), profile=profile, assumptions=notes, handed=args.handed,
     )
     save_plan(cd, plan)
     mf.update(cd, lambda data: data.__setitem__("assumptions", plan["assumptions"]))
@@ -221,8 +223,35 @@ def cmd_generate(args):
     cd = _cid(args)
     mf.load(cd)
     return generation.generate_unit(cd, load_plan(cd), identity.load_profile(cd), _action(args), args.direction,
-                                    args.extra, args.recovery, args.timeout)
+                                    args.extra, args.recovery, args.timeout)  # method=video: video provider from env
 
+
+
+def _resume_args(p):
+    _unit_args(p)
+    p.add_argument("--attempt", required=True, help="the attempt NNN whose video generation was left unfinished")
+    p.add_argument("--timeout", type=int, default=600, help="seconds to wait for the clip")
+
+
+@command("resume", args=_resume_args)
+def cmd_resume(args):
+    """Ask again for an unfinished video generation by its request_id (nothing is submitted or billed twice)"""
+    cd = _cid(args)
+    mf.load(cd)
+    return generation.resume_video_unit(cd, load_plan(cd), _action(args), args.direction, args.attempt, args.timeout)
+
+
+def _review_args(p):
+    _unit_args(p, with_attempt=True)
+    p.add_argument("--timeout", type=int, default=300, help="seconds for the Codex call")
+
+
+@command("review", args=_review_args)
+def cmd_review(args):
+    """Ask Codex to review a processed attempt's motion (advisory vision review)"""
+    cd = _cid(args)
+    mf.load(cd)
+    return vision.review_attempt(cd, load_plan(cd), _action(args), args.direction, args.attempt, args.timeout)
 
 
 def _import_raw_args(p):

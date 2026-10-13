@@ -4,10 +4,13 @@
  *   action-check-<action>           액션 체크박스
  *   action-toggle-<action>          액션 행 펼치기 버튼
  *   action-frames-<action>, action-fps-<action>, action-loop-<action>, action-grid-<action>   펼친 행의 편집 컨트롤
+ *   action-method-<action>          생성 방식 select(격자 grid · 호흡 breathe · 동영상 video). video 는 API 가 연결되지 않으면 비활성이고
+ *                                   action-method-video-hint 에 사유가 표시된다. breathe 는 정지 1장을 만들어 호흡 프레임을 생성(1x1)
  *   plan-view                       view select 트리거 (이미 저장된 플랜이면 비활성)
  *   plan-cell                       출력 cell select 트리거
  *   direction-controls              방향 선택 영역 — view=topdown 일 때만 렌더링됨
  *   direction-down|up|right|left    방향 체크박스
+ *   plan-handed                     손잡이 select (없음 · 왼손 · 오른손). 지정하면 좌측면 반전이 꺼지고 좌측면을 직접 생성한다
  *   mirror-switch                   좌측면 "우측면 반전" 스위치 (topdown 에서만 존재)
  *   mirror-off-note                 mirror 를 껐을 때의 예상 시간 증가 안내
  *   asymmetry-badge                 서버 plan.assumptions 에 "비대칭" 경고가 있을 때
@@ -49,9 +52,9 @@ import { latestBatchJob, summarizeBatch } from '@/lib/batch'
 import { VIEW_OPTIONS } from '@/lib/character'
 import { resolveKeyColor } from '@/lib/color'
 import {
-  BUNDLE_LABELS, CELL_OPTIONS, CUSTOM_BUNDLE, DIRECTIONS, actionValues, applyDraftToPlan, buildCreateRequest, canMirror,
+  BREATHE_FRAMES, BUNDLE_LABELS, CELL_OPTIONS, CUSTOM_BUNDLE, DIRECTIONS, HANDED_OPTIONS, actionValues, applyDraftToPlan, buildCreateRequest, canMirror,
   countUnits, draftFromPlan, effectiveMirror, estimateSeconds, expandBundle, formatDuration, withView,
-  type ActionValues, type PlanDraft, type PlanDirection,
+  type ActionValues, type GenerationMethod, type Handed, type PlanDraft, type PlanDirection,
 } from '@/lib/plan'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -90,6 +93,12 @@ function ActionRow({ name, draft, presets, onToggle, onEdit }: {
 }) {
   const on = draft.actions.includes(name)
   const v = actionValues(name, draft, presets)
+  const methods = presets.methods ?? { grid: { available: true, reason: null }, breathe: { available: true, reason: null }, video: { available: false, reason: '동영상 API가 연결되지 않았습니다' } }
+  const videoReason = !methods.video.available ? methods.video.reason
+    : draft.directions.length > 1 ? '동영상 방식은 방향이 하나인 플랜에서만 쓸 수 있습니다' : null
+  const changeMethod = (method: GenerationMethod) =>
+    onEdit(method === 'breathe' ? { method, frames: BREATHE_FRAMES, grid: '1x1' }
+      : { method, frames: presets.frame_presets[name]?.frames ?? v.frames, grid: presets.frame_presets[name]?.grid ?? v.grid })
   const grids = [...new Set(Object.values(presets.grids))].filter((g) => {
     const [r, c] = g.split('x').map(Number)
     return r * c >= v.frames
@@ -100,7 +109,7 @@ function ActionRow({ name, draft, presets, onToggle, onEdit }: {
         <Checkbox id={`action-${name}`} checked={on} data-testid={`action-check-${name}`} onCheckedChange={(c) => onToggle(c === true)} />
         <Label htmlFor={`action-${name}`} className="w-16 font-medium">{name}</Label>
         <span className="text-sm text-muted-foreground">
-          {v.frames}프레임 · {v.grid} · {v.fps}fps · {v.loop ? '반복' : '1회'}
+          {v.method === 'breathe' ? '호흡 · ' : ''}{v.frames}프레임 · {v.grid} · {v.fps}fps · {v.loop ? '반복' : '1회'}
         </span>
         {on && (
           <CollapsibleTrigger asChild>
@@ -111,7 +120,21 @@ function ActionRow({ name, draft, presets, onToggle, onEdit }: {
         )}
       </div>
       {on && (
-        <CollapsibleContent className="grid gap-4 border-t px-3 py-3 sm:grid-cols-4">
+        <CollapsibleContent className="grid gap-4 border-t px-3 py-3 sm:grid-cols-5">
+          <div className="space-y-1.5">
+            <Label>생성 방식</Label>
+            <Select value={v.method} onValueChange={(m) => changeMethod(m as GenerationMethod)}>
+              <SelectTrigger className="w-full" data-testid={`action-method-${name}`}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="grid">격자 (기본)</SelectItem>
+                <SelectItem value="breathe">호흡 (정지 1장)</SelectItem>
+                <SelectItem value="video" disabled={!!videoReason}>동영상 (API)</SelectItem>
+              </SelectContent>
+            </Select>
+            {videoReason && (
+              <p className="text-xs text-muted-foreground" data-testid={`action-method-video-hint`}>동영상: {videoReason}</p>
+            )}
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor={`frames-${name}`}>frames (2–16)</Label>
             <NumberField id={`frames-${name}`} min={2} max={16} value={v.frames} data-testid={`action-frames-${name}`}
@@ -124,7 +147,7 @@ function ActionRow({ name, draft, presets, onToggle, onEdit }: {
           </div>
           <div className="space-y-1.5">
             <Label>grid</Label>
-            <Select value={v.grid} onValueChange={(grid) => onEdit({ grid })}>
+            <Select value={v.grid} disabled={v.method === 'breathe'} onValueChange={(grid) => onEdit({ grid })}>
               <SelectTrigger className="w-full" data-testid={`action-grid-${name}`}><SelectValue /></SelectTrigger>
               <SelectContent>{grids.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent>
             </Select>
@@ -274,6 +297,15 @@ function PlanEditor({ cid, presets, plan, initial, keyColors }: {
         </div>
       </section>
 
+      <section className="space-y-1.5 rounded-lg border p-4" data-testid="handed-controls">
+        <Label>손잡이</Label>
+        <Select value={draft.handed ?? 'none'} onValueChange={(handed) => patch({ handed: handed as Handed })}>
+          <SelectTrigger className="w-56" data-testid="plan-handed"><SelectValue /></SelectTrigger>
+          <SelectContent>{HANDED_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+        </Select>
+        <p className="text-sm text-muted-foreground">무기 등을 한 손에만 들면 지정하세요. 좌측면을 반전하지 않고 직접 생성해 소지품이 같은 손에 남습니다(예상 시간 증가).</p>
+      </section>
+
       {topdown && (
         <section className="space-y-3 rounded-lg border p-4" data-testid="direction-controls">
           <Label>방향</Label>
@@ -285,7 +317,7 @@ function PlanEditor({ cid, presets, plan, initial, keyColors }: {
                 <Label htmlFor={`dir-${value}`}>{label}</Label>
                 {value === 'left' && (
                   <>
-                    <Switch id="mirror" checked={effectiveMirror(draft)} disabled={!canMirror(draft)} data-testid="mirror-switch"
+                    <Switch id="mirror" checked={effectiveMirror(draft)} disabled={!canMirror(draft) || (draft.handed ?? 'none') !== 'none'} data-testid="mirror-switch"
                       onCheckedChange={(mirror) => patch({ mirror })} />
                     <Label htmlFor="mirror" className="text-muted-foreground">우측면 반전</Label>
                   </>

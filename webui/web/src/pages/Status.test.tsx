@@ -23,6 +23,20 @@ function routes(h: unknown) {
 }
 
 describe('Status', () => {
+  it('shows the optional video connection state; not connected is a hint, not an error', async () => {
+    mockApi(routes({ ...health(), video: { provider: 'xai', configured: false, auth: null } }))
+    renderWithClient(<Status />)
+    expect(await screen.findByTestId('status-video')).toHaveAttribute('data-ok', 'false')
+    expect(screen.getByTestId('status-video-hint')).toHaveTextContent('docs/13-video-api-setup.md')
+  })
+
+  it('marks the video provider connected with its auth source', async () => {
+    mockApi(routes({ ...health(), video: { provider: 'xai', configured: true, auth: 'env' } }))
+    renderWithClient(<Status />)
+    expect(await screen.findByTestId('status-video')).toHaveTextContent('연결됨 (env)')
+    expect(screen.queryByTestId('status-video-hint')).not.toBeInTheDocument()
+  })
+
   it('marks failing doctor checks with the fix command and a copy button', async () => {
     const writeText = vi.fn(() => Promise.resolve())
     vi.stubGlobal('navigator', { clipboard: { writeText } })

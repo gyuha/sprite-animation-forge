@@ -306,3 +306,14 @@ def test_recovery_pass_report_has_no_recommendations_and_run_qc_stays_pure():
     data = {"params": {"cell": {"w": 128, "h": 128}, "x_anchor": "mass"},
             "derived": {"baseline_y": 118, "scale": 1.0, "bg_distance_to_key": 0.0, "frames": []}}
     assert qc.run_qc(data, [], "walk")["recommendations"] == []
+
+
+def test_recovery_qc03_register_recommends_per_frame_alignment_first(tmp_path):
+    from fixtures.synthetic.make import make_sheet
+    from sprite_forge import qc
+    from sprite_forge.pipeline.process import ProcessParams, process_sheet
+    make_sheet("baseline_jitter", rows=2, cols=3, cell_size=(256, 256)).save(tmp_path / "raw.png")
+    res = process_sheet(tmp_path / "raw.png", tmp_path / "out", ProcessParams())
+    recs = recovery.recommend(qc.run_qc(res, action="walk"), res.data)
+    first = next(r for r in recs if r["qc_id"] == "QC-03")
+    assert first["type"] == "reprocess" and first["set"] == {"align": "per_frame"}

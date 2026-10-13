@@ -239,7 +239,7 @@ PRD §10 표에 `fall`과 fps를 추가했다. fps는 PRD §9 예시(idle 6, wal
 | 선택 | plan 값 | `left` 처리 |
 |---|---|---|
 | 우측면 반전 (기본) | `mirror: {"left": "right"}` | Codex 호출 없이 파생 |
-| 좌측면 별도 생성 | `mirror: {}` | 다른 방향과 같은 unit. 생성·QC·재처리·채택 |
+| 좌측면 별도 생성 | `mirror: {}` | 다른 방향과 같은 unit. 생성·QC·재처리·채택. plan에 `handed`(`left`/`right`)를 지정하면 자동으로 이 모드가 된다([04](04-prompt-rules.md) §11) |
 
 - 설정 위치: CLI `plan --no-mirror`(또는 `--mirror`), S4 화면의 "좌측면: 우측면 반전" 스위치
 - 기본값을 켜짐으로 둔 이유는 호출 수를 25% 줄이고 좌우 일관성을 보장하기 위해서다. reference/identity의 `weapon`·`clothing`·`accessories`에 좌우를 가르는 단어(`left`, `right`, `one-sided` 등)가 있으면 plan 생성 시 "비대칭일 수 있습니다. 좌측면을 별도 생성할까요?" 경고를 `assumptions`에 남기고 UI에서 스위치 옆에 표시한다. 경고만 하고 자동으로 끄지는 않는다

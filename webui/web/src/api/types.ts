@@ -107,6 +107,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/characters/{cid}/actions/{action}/attempts/{aid}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Attempt
+         * @description Finish a ``method=video`` attempt whose generation was left unfinished (``video-request.json``): asks the video
+         *     provider again by its request_id, nothing is submitted. Needs the video provider, not Codex.
+         */
+        post: operations["resume_attempt_api_characters__cid__actions__action__attempts__aid__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/characters/{cid}/actions/{action}/attempts/{aid}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Attempt */
+        post: operations["review_attempt_api_characters__cid__actions__action__attempts__aid__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/characters/{cid}/actions/{action}/generate": {
         parameters: {
             query?: never;
@@ -499,6 +537,14 @@ export interface components {
             summary: components["schemas"]["AttemptSummary"];
             /** Unit */
             unit: string;
+            /** Video Meta */
+            video_meta?: {
+                [key: string]: unknown;
+            } | null;
+            /** Vision Review */
+            vision_review?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** AttemptFiles */
         AttemptFiles: {
@@ -512,6 +558,8 @@ export interface components {
             raw: string | null;
             /** Sheet */
             sheet: string | null;
+            /** Video */
+            video?: string | null;
         };
         /** AttemptList */
         AttemptList: {
@@ -553,6 +601,8 @@ export interface components {
             extra?: string | null;
             /** Generation Status */
             generation_status?: string | null;
+            /** Prompt Version */
+            prompt_version?: string | null;
             /** Provider */
             provider?: string | null;
             /** Qc Status */
@@ -702,7 +752,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "reference_generate" | "identity_analyze" | "action_generate" | "batch_generate";
+            type: "reference_generate" | "identity_analyze" | "action_generate" | "batch_generate" | "vision_review";
         };
         /** JobCreated */
         JobCreated: {
@@ -760,6 +810,8 @@ export interface components {
             directions?: ("down" | "up" | "right" | "left")[] | null;
             /** Facing */
             facing?: string | null;
+            /** Handed */
+            handed?: ("none" | "left" | "right") | null;
             /** Mirror */
             mirror?: boolean | null;
             /**
@@ -1153,6 +1205,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttemptResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_attempt_api_characters__cid__actions__action__attempts__aid__resume_post: {
+        parameters: {
+            query?: {
+                /** @description down|up|right|left; required when the plan has 2+ directions */
+                direction?: ("down" | "up" | "right" | "left") | null;
+            };
+            header?: never;
+            path: {
+                cid: string;
+                action: string;
+                aid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_attempt_api_characters__cid__actions__action__attempts__aid__review_post: {
+        parameters: {
+            query?: {
+                /** @description down|up|right|left; required when the plan has 2+ directions */
+                direction?: ("down" | "up" | "right" | "left") | null;
+            };
+            header?: never;
+            path: {
+                cid: string;
+                action: string;
+                aid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobCreated"];
                 };
             };
             /** @description Validation Error */

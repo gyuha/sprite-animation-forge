@@ -5,7 +5,7 @@ with the doctor result in ``detail.doctor``), queues the Job and answers ``202 {
 Notes on ambiguous spots
 ------------------------
 * Request-time preconditions mirror Core (412 ``precondition_failed``): reference (and for generation the identity
-  profile and, for non-representative directions, the representative unit's raw.png) must exist; ``direction`` rules and 409 ``mirrored_direction`` are those of the sync action endpoints; the
+  profile and, for non-representative directions, the representative unit's adopted frame) must exist; ``direction`` rules and 409 ``mirrored_direction`` are those of the sync action endpoints; the
   recovery codes / extra are validated by building the prompt once.
 * ``attempt`` in the 202 body is always null: Core allocates the attempt inside the Codex lock (see jobs.py); the
   Job's ``attempt`` is filled once the job runs.
@@ -17,11 +17,14 @@ Notes on ambiguous spots
 
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 
 from sprite_forge import identity
+from sprite_forge import plan as plan_mod
 from sprite_forge import manifest as mf
 from sprite_forge.errors import EXIT_PRECONDITION, ForgeError
 from sprite_forge.generation import MAX_REFERENCE_COUNT
@@ -69,6 +72,21 @@ def require_reference(cd) -> None:
         raise ForgeError("no_reference", "run reference import (or reference generate/select) first", EXIT_PRECONDITION)
 
 
+def require_video() -> None:
+    if not plan_mod.video_method_available():
+        raise ForgeError("method_unavailable", "method=video needs a connected video provider "
+                         "(see docs/13-video-api-setup.md)", EXIT_PRECONDITION)
+
+
+async def require_providers(request: Request, plan: dict, actions) -> None:
+    """Codex is needed only by grid/breathe units, the video provider only by video units."""
+    methods = {plan["actions"][a].get("method", "grid") for a in actions}
+    if methods & {"grid", "breathe"}:
+        await require_codex(request)
+    if "video" in methods:
+        require_video()
+
+
 def require_profile(cd) -> dict:
     profile = identity.load_profile(cd)
     if profile is None:
@@ -95,6 +113,41 @@ async def analyze_identity(request: Request, cid: str, body: IdentityAnalyzeRequ
     return JobCreated(job=job)
 
 
+@router.post(BASE + "/attempts/{aid}/review", status_code=202)
+async def review_attempt(request: Request, cid: str, action: str, aid: str,
+                         direction: Direction | None = DirectionQuery) -> JobCreated:
+    cd, plan = load_cd_plan(request, cid)
+    unit, d, _ = resolve(plan, action, direction)
+    if not re.fullmatch(r"\d{3}", aid) or not (cd / unit / "attempts" / aid).is_dir():
+        raise ApiError(404, "not_found", f"{unit} attempt {aid!r} does not exist")
+    if not any((cd / unit / "attempts" / aid / "frames").glob("*.png")):
+        raise ForgeError("not_processed", f"{unit} attempt {aid} has no frames; process it first", EXIT_PRECONDITION)
+    await require_codex(request)
+    job = request.app.state.jobs.submit("vision_review", cid, job_tasks.vision_review(cd, action, d, aid), action=action,
+                                        direction=d, cancelable=False)
+    return JobCreated(job=job)
+
+
+@router.post(BASE + "/attempts/{aid}/resume", status_code=202)
+async def resume_attempt(request: Request, cid: str, action: str, aid: str,
+                         direction: Direction | None = DirectionQuery) -> JobCreated:
+    """Finish a ``method=video`` attempt whose generation was left unfinished (``video-request.json``): asks the video
+    provider again by its request_id, nothing is submitted. Needs the video provider, not Codex."""
+    cd, plan = load_cd_plan(request, cid)
+    unit, d, _ = resolve(plan, action, direction)
+    if not re.fullmatch(r"\d{3}", aid) or not (cd / unit / "attempts" / aid).is_dir():
+        raise ApiError(404, "not_found", f"{unit} attempt {aid!r} does not exist")
+    adir = cd / unit / "attempts" / aid
+    if plan["actions"][action].get("method", "grid") != "video" or not (adir / "video-request.json").is_file() \
+            or (adir / "raw.png").exists():
+        raise ForgeError("not_resumable", f"{unit} attempt {aid} has no unfinished video request", EXIT_PRECONDITION)
+    require_video()
+    direction_out = d if len(plan["directions"]) > 1 else None
+    job = request.app.state.jobs.submit("action_generate", cid, job_tasks.video_resume(cd, action, direction_out, aid),
+                                        action=action, direction=direction_out, expected_s=SECONDS_PER_CALL)
+    return JobCreated(job=job)
+
+
 @router.post(BASE + "/generate", status_code=202)
 async def generate_action(request: Request, cid: str, action: str, body: PromptRequest | None = None,
                           direction: Direction | None = DirectionQuery) -> JobCreated:
@@ -105,10 +158,10 @@ async def generate_action(request: Request, cid: str, action: str, body: PromptR
     profile = require_profile(cd)
     pr = build_prompt(plan, profile, action, d, body.extra, body.recovery)  # validates recovery codes
     for role in pr.references_needed:
-        if role != "character" and not (cd / role.split(":", 1)[1] / "raw.png").exists():
+        if role.startswith("direction:") and not (cd / role.split(":", 1)[1] / "frames" / "000.png").exists():
             raise ForgeError("no_direction_reference", f"accept {role.split(':', 1)[1]} first (it is the direction reference)",
                              EXIT_PRECONDITION)
-    await require_codex(request)
+    await require_providers(request, plan, [action])
     job = request.app.state.jobs.submit(
         "action_generate", cid, job_tasks.action_generate(cd, action, d if len(plan["directions"]) > 1 else None,
                                                           body.extra, body.recovery),
@@ -129,7 +182,7 @@ async def generate_all(request: Request, cid: str, body: GenerateAllRequest | No
     todo = job_tasks.batch_units(plan, body.actions, accepted)
     if not todo:
         raise ApiError(400, "nothing_to_generate", "no unit left to generate")
-    await require_codex(request)
+    await require_providers(request, plan, {u["action"] for u in todo})
     job = request.app.state.jobs.submit(
         "batch_generate", cid, job_tasks.batch_generate(cd, todo, body.auto_accept, body.max_regenerations),
         expected_s=len(todo) * SECONDS_PER_CALL, progress=Progress(done=0, total=len(todo)))

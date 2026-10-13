@@ -216,7 +216,7 @@ def test_prompt_templates_load_from_package_resources():
 
 
 def test_prompt_template_version_format():
-    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@1"
+    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@4"
     assert pr.build_prompt(side_plan(), PROFILE, "walk").template_version == pr.PROMPT_TEMPLATE_VERSION
 
 
@@ -289,6 +289,7 @@ def test_prompt_fx_action_warns():
 # ---------------------------------------------------------------- recovery
 
 RECOVERY_PHRASES = {
+    "loop_closure": "The last frame must lead smoothly back into the first frame: draw the pose in the last cell as the step just before the first cell's pose, so the animation loops without a jump.",
     "edge_touch": "The previous attempt crossed cell borders. Keep a wide empty margin around the character in every cell.",
     "scale_drift": "The previous attempt changed the character size between cells. Draw the character at exactly the same size in every cell; the top of the head and the soles of the feet line up across each row.",
     "character_small": "Keep the body the same size as in the reference image. The weapon may extend toward the cell edge but the body must not shrink.",
@@ -405,7 +406,7 @@ def test_prompt_direction_reference_block_only_for_non_representative_directions
     assert "DIRECTION REFERENCE" not in down.text and down.references_needed == ["character"]
     for d in ("up", "right"):
         res = pr.build_prompt(plan, PROFILE, "walk", d)
-        assert res.text.count("DIRECTION REFERENCE\n- The second attached image shows the same character") == 1
+        assert res.text.count("DIRECTION REFERENCE\n- The second attached image shows one single pose of the same character") == 1
         assert res.references_needed == ["character", "direction:idle/down"]
         assert res.text.index("Top-down RPG view") < res.text.index("DIRECTION REFERENCE") < res.text.index("\nACTION\n")
     side = pr.build_prompt(side_plan(), PROFILE, "walk")
@@ -456,3 +457,23 @@ def test_prompt_every_action_builds_and_validates(action, view):
     direction = "down" if view == "topdown" else None
     text = pr.build_prompt(plan, PROFILE, action, direction).text
     assert pr.validate_prompt(text) == []
+
+
+BASELINE_SENTENCE = "soles of the feet sit on the same horizontal baseline"
+
+
+@pytest.mark.parametrize("action,expected", [("walk", True), ("idle", True), ("attack", True), ("jump", False), ("fall", False)])
+def test_prompt_shared_baseline_rule_is_dropped_for_airborne_actions(action, expected):
+    p = make_plan((action,))
+    text = pr.build_prompt(p, PROFILE, action).text
+    assert (BASELINE_SENTENCE in text) is expected
+    assert pr.validate_prompt(text) == []
+
+
+def test_prompt_template_version_is_action_prompt_3():
+    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@4"
+
+
+def test_plan_process_params_marks_airborne_actions_to_keep_vertical_travel():
+    p = make_plan(("walk", "jump", "fall"))
+    assert [plan_mod.process_params(p, a).preserve_vertical for a in ("walk", "jump", "fall")] == [False, True, True]

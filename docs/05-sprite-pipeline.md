@@ -219,7 +219,10 @@ k_norm     = character-scale-profile.json 의 norm_scale (= 기준 액션의 s �
 | 조건 | 방법 |
 |---|---|
 | `art_style`이 `pixel_art` / `retro_pixel` | `Image.BOX` 축소 후 알파 이진화(`alpha ≥ 128 → 255`, 그 외 0). 반투명 가장자리 제거 |
-| 그 외 | 프리멀티플라이드 알파(`RGBa`)로 변환 → `Image.LANCZOS` → `RGBA`로 복원 |
+| 그 외, `resample_mode=coverage`(기본) | 알파(커버리지)는 `Image.LANCZOS`로, 색은 **알파 가중 평균(`BILINEAR`, 음수 가중치 없음)** 으로 따로 리샘플. 알파가 0인 곳은 RGB도 0 |
+| 그 외, `resample_mode=legacy` | 프리멀티플라이드 알파(`RGBa`)로 변환 → `Image.LANCZOS` → `RGBA`로 복원 (이전 출력과 바이트 동일) |
+
+`coverage`를 기본으로 하는 이유: 프리멀티플라이드 LANCZOS는 음수 로브(ringing)가 만든 언더슈트를 알파로 다시 나눌 때 가장자리에 밝은 테두리와, 알파가 1~2뿐인 화소의 엉뚱한 색(예: `(255,0,0)`)을 만든다. 알파 가중 평균은 주변에 실제로 있는 색들의 볼록 결합이라 주변 색 범위를 벗어날 수 없다. 실측(합성 스프라이트, 배율 0.37~1.3)에서 `legacy`는 전 배율에서 범위를 벗어난 화소가 있고 `coverage`는 0이다([14](14-sprite-gen-sync.md)). `pixel_art`는 모드와 무관하게 BOX다. 재처리 `--set resample_mode=legacy`로 이전 방식을 고를 수 있다.
 
 프리멀티플라이 변환을 명시하는 이유: 투명 픽셀의 RGB(키 색)가 보간에 섞이면 가장자리에 분홍 테두리가 생긴다. Pillow 내부 처리에 기대지 않고 명시적으로 변환한다.
 

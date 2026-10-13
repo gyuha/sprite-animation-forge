@@ -21,6 +21,10 @@ export interface Health {
   ready: boolean
   warnings: string[]
   codex: { installed: boolean; version: string | null; tested_version?: string; codex_home?: string; version_ok: boolean; logged_in: boolean; auth: string | null; image_generation: boolean }
+  /** optional video provider (docs/13); not connected never makes `ready` false */
+  video?: { provider: string; configured: boolean; auth: string | null; model?: string }
+  /** optional frame interpolator for jump-frame repair (docs/13 section 8); informational */
+  rife?: { installed: boolean; bin: string | null; source: string | null }
   python: Record<string, string | null>
 }
 export interface CharacterCard {
@@ -61,6 +65,8 @@ export interface Presets {
   asset_types: string[]
   art_styles: string[]
   directions: string[]
+  /** generation method availability (grid | breathe | video); `video` needs a connected video provider */
+  methods?: Record<string, { available: boolean; reason: string | null }>
 }
 
 /** Query keys. Everything of a character lives under ['characters', cid, ...] (see sse.ts for invalidation). */
