@@ -169,6 +169,7 @@ data: {"id":"job_3f9a1c2b7d10","state":"succeeded","stage":"qc","result":{"attem
 | POST | `/api/characters/{cid}/plan` | 동기 | actions/bundle/`--set` 값으로 plan 최초 생성(CLI `plan`과 같은 함수) |
 | POST | `/api/characters/{cid}/actions/{action}/prompt` | 동기 | 프롬프트 미리보기 |
 | POST | `/api/characters/{cid}/actions/{action}/generate` | Job | 새 attempt 생성 |
+| POST | `/api/characters/{cid}/actions/{action}/attempts/{aid}/resume` | Job | `method=video` attempt 중 끝나지 못한 생성을 `video-request.json`의 request_id로 이어받는다(제출 없음, 재과금 없음). 영상 provider만 필요(Codex 불필요). 이어받으면 후처리·QC까지 수행. 이어받을 요청이 없으면 412 |
 | POST | `/api/characters/{cid}/actions/{action}/upload` | 동기 | 수동 raw 업로드 → attempt + 자동 처리 |
 | GET | `/api/characters/{cid}/actions/{action}/attempts` | 동기 | attempt 목록 |
 | GET | `/api/characters/{cid}/actions/{action}/attempts/{aid}` | 동기 | attempt 상세(generation, process, qc, 파일 URL) |

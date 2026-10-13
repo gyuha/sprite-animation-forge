@@ -19,14 +19,14 @@ wall: none
 - [x] C9. 브랜치 불변: `[ "$(git rev-parse main)" = d2346aac544661f2a44596a9c7ed1e2e6541b5b4 ] && [ "$(git rev-parse origin/main)" = d2346aac544661f2a44596a9c7ed1e2e6541b5b4 ] && [ "$(git rev-parse feature/xai-video)" = b2db9fb47f949c729a1992fd65387bc1f7dd017a ] && [ "$(git branch --show-current)" = feature/sprite-gen-sync ]` exit 0 (회귀 가드: 사전부터 통과)
 
 ## Check progress
-- C1: pass ×0 · regressed: ×0 · last-evidence: "928 passed, 4 skipped, 3 deselected, 1 warning in 176.60s (0:02:56); missing baseline ids=0"
+- C1: pass ×0 · regressed: ×0 · last-evidence: "941 passed, 4 skipped, 3 deselected, 1 warning in 183.59s (0:03:03); missing baseline ids=0"
 - C2: pass ×0 · regressed: ×0 · last-evidence: "vitest=212 e2e=12"
-- C3: pass ×0 · regressed: ×0 · last-evidence: "-k sg_provider: passed=20 (need >= 12) rc=0"
+- C3: pass ×0 · regressed: ×0 · last-evidence: "-k sg_provider: passed=33 (need >= 12) rc=0"
 - C4: pending ×0 · regressed: ×0 · last-evidence: "-k sg_resample: passed=0 (need >= 6) rc=5"
 - C5: pending ×0 · regressed: ×0 · last-evidence: "-k sg_image: passed=0 (need >= 12) rc=5"
 - C6: pending ×0 · regressed: ×0 · last-evidence: "-k sg_video: passed=0 (need >= 14) rc=5"
 - C7: pending ×0 · regressed: ×0 · last-evidence: "-k sg_rife: passed=0 (need >= 12) rc=5"
-- C8: pending ×0 · regressed: ×0 · last-evidence: "rows: {'A': 7, 'B': 0, 'C': 0, 'D': 0} not adopted: 0 | ERROR area B: no rows | ERROR area C: no rows | ERROR area D: no rows | ERROR not-adopted table has 0 complete rows, need >= 5"
+- C8: pending ×0 · regressed: ×0 · last-evidence: "rows: {'A': 11, 'B': 0, 'C': 0, 'D': 0} not adopted: 0 | ERROR area B: no rows | ERROR area C: no rows | ERROR area D: no rows | ERROR not-adopted table has 0 complete rows, need >= 5"
 - C9: pass ×0 · regressed: ×0 · last-evidence: "branches unchanged"
 
 ## Authorized replan scope

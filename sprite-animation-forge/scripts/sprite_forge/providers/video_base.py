@@ -33,6 +33,8 @@ class VideoProvider(Protocol):
     name: str
     def check(self) -> dict: ...     # {provider, configured, auth, ...}; never raises
     def generate(self, req: VideoRequest, on_progress: ProgressFn | None = None) -> VideoResult: ...
+    def resume(self, request_id: str, out_path, timeout_s: int = 600, on_progress: ProgressFn | None = None,
+               **settings) -> VideoResult: ...  # asks again for an accepted request: no submission, nothing billed twice
     def cancel(self) -> None: ...
 
 

@@ -31,6 +31,24 @@ class FakeXaiTransport:
             except Exception:  # not a decodable image (unit tests send placeholder bytes): keep the stub clip
                 pass
 
+    def _default_clip(self) -> None:
+        """A resume in a fresh process never saw the first frame: answer with a clip of a built-in synthetic character."""
+        import io
+        import tempfile
+        from pathlib import Path
+
+        from PIL import Image
+
+        img = Image.new("RGB", (480, 480), (255, 0, 255))
+        img.paste((30, 140, 220), (182, 120, 298, 240))
+        img.paste((200, 60, 40), (182, 240, 298, 384))
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        with tempfile.TemporaryDirectory(prefix="fake-video-") as tmp:
+            out = Path(tmp) / "clip.mp4"
+            if make_bobbing_mp4(buf.getvalue(), out):
+                self.video = out.read_bytes()
+
     def __call__(self, method, url, headers, body, timeout):
         self.calls.append((method, url))
         self.auth_headers.append(headers.get("Authorization"))
@@ -52,6 +70,8 @@ class FakeXaiTransport:
                 return 200, json.dumps({"status": "failed", "error": "content policy"}).encode()
             return 200, json.dumps({"status": "done", "video": {"url": "https://cdn.fake/v.mp4"}}).encode()
         if url == "https://cdn.fake/v.mp4":
+            if self.mode == "ok" and self.video is FAKE_MP4 and not self.requests:
+                self._default_clip()
             return 200, (b"not an mp4" if self.mode == "bad_file" else self.video)
         return 404, b"{}"
 

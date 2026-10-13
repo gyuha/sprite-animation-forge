@@ -6,42 +6,9 @@ import json
 import pytest
 from sprite_forge.providers import VideoRequest, XaiVideoProvider
 from sprite_forge.providers import redact as rd
+from sg_helpers import ACCEPTED, LONG_KEY, OK_DONE, Clock, Script  # noqa: F401
 from sprite_forge.providers.fake_video import FAKE_MP4
 from sprite_forge.providers.xai_video import TransportError
-
-OK_DONE = json.dumps({"status": "done", "video": {"url": "https://cdn.fake/v.mp4"}}).encode()
-ACCEPTED = json.dumps({"request_id": "req-1"}).encode()
-LONG_KEY = "xai-" + "A1b2C3d4" * 6
-
-
-class Clock:
-    def __init__(self):
-        self.now = 1000.0
-
-    def __call__(self):
-        return self.now
-
-    def sleep(self, seconds):
-        self.now += seconds
-
-
-class Script:
-    """A transport answering from a list per kind of call; records (method, url, timeout)."""
-
-    def __init__(self, clock, polls=(), downloads=(), post=(200, ACCEPTED), step=0.0):
-        self.clock, self.polls, self.downloads, self.post, self.step = clock, list(polls), list(downloads), post, step
-        self.calls = []
-
-    def __call__(self, method, url, headers, body, timeout):
-        self.calls.append((method, url, timeout))
-        self.clock.now += self.step
-        if method == "POST":
-            return self.post
-        queue = self.downloads if url.startswith("https://cdn") else self.polls
-        item = queue.pop(0) if len(queue) > 1 else queue[0]
-        if isinstance(item, Exception):
-            raise item
-        return item
 
 
 @pytest.fixture
@@ -192,3 +159,27 @@ def test_sg_provider_provider_code_reads_both_error_shapes():
     assert rd.provider_code({"error": {"code": "moderation_blocked"}}) == "moderation_blocked"
     assert rd.provider_code({"code": "rate_limited", "error": "too many"}) == "rate_limited"
     assert rd.provider_code({"error": {"code": "has space"}}) is None and rd.provider_code("text") is None
+
+
+# ---- resume: ask again for an accepted request, submit nothing ------------------------------------------------
+
+def test_sg_provider_resume_polls_and_downloads_without_submitting(tmp_path):
+    clock = Clock()
+    script = Script(clock, polls=[(200, json.dumps({"status": "pending"}).encode()), (200, OK_DONE)], downloads=[(200, FAKE_MP4)])
+    out = tmp_path / "raw.mp4"
+    res = make(script, clock).resume("req-77", out, timeout_s=60)
+    assert res.status == "succeeded" and out.read_bytes() == FAKE_MP4 and res.meta["request_id"] == "req-77"
+    assert [c[0] for c in script.calls].count("POST") == 0 and any(c[1].endswith("/v1/videos/req-77") for c in script.calls)
+
+
+def test_sg_provider_resume_that_runs_out_of_time_keeps_the_request_resumable(tmp_path):
+    clock = Clock()
+    script = Script(clock, polls=[(200, json.dumps({"status": "pending"}).encode())], step=5.0)
+    res = make(script, clock).resume("req-77", tmp_path / "raw.mp4", timeout_s=20)
+    assert (res.status, res.error_code) == ("timeout", "video_timeout")
+    assert res.meta["request_id"] == "req-77" and res.meta["unfinished"] is True and not (tmp_path / "raw.mp4").exists()
+
+
+def test_sg_provider_resume_without_credentials_refuses_and_names_the_id(tmp_path, monkeypatch):
+    res = XaiVideoProvider(transport=Script(Clock()), clock=Clock()).resume("req-77", tmp_path / "raw.mp4")
+    assert res.error_code == "video_not_configured" and res.meta["request_id"] == "req-77"

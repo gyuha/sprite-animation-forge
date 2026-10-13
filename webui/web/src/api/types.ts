@@ -107,6 +107,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/characters/{cid}/actions/{action}/attempts/{aid}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume Attempt
+         * @description Finish a ``method=video`` attempt whose generation was left unfinished (``video-request.json``): asks the video
+         *     provider again by its request_id, nothing is submitted. Needs the video provider, not Codex.
+         */
+        post: operations["resume_attempt_api_characters__cid__actions__action__attempts__aid__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/characters/{cid}/actions/{action}/attempts/{aid}/review": {
         parameters: {
             query?: never;
@@ -1178,6 +1199,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AttemptResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_attempt_api_characters__cid__actions__action__attempts__aid__resume_post: {
+        parameters: {
+            query?: {
+                /** @description down|up|right|left; required when the plan has 2+ directions */
+                direction?: ("down" | "up" | "right" | "left") | null;
+            };
+            header?: never;
+            path: {
+                cid: string;
+                action: string;
+                aid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobCreated"];
                 };
             };
             /** @description Validation Error */

@@ -225,6 +225,20 @@ def cmd_generate(args):
 
 
 
+def _resume_args(p):
+    _unit_args(p)
+    p.add_argument("--attempt", required=True, help="the attempt NNN whose video generation was left unfinished")
+    p.add_argument("--timeout", type=int, default=600, help="seconds to wait for the clip")
+
+
+@command("resume", args=_resume_args)
+def cmd_resume(args):
+    """Ask again for an unfinished video generation by its request_id (nothing is submitted or billed twice)"""
+    cd = _cid(args)
+    mf.load(cd)
+    return generation.resume_video_unit(cd, load_plan(cd), _action(args), args.direction, args.attempt, args.timeout)
+
+
 def _review_args(p):
     _unit_args(p, with_attempt=True)
     p.add_argument("--timeout", type=int, default=300, help="seconds for the Codex call")

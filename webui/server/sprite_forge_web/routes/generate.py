@@ -128,6 +128,26 @@ async def review_attempt(request: Request, cid: str, action: str, aid: str,
     return JobCreated(job=job)
 
 
+@router.post(BASE + "/attempts/{aid}/resume", status_code=202)
+async def resume_attempt(request: Request, cid: str, action: str, aid: str,
+                         direction: Direction | None = DirectionQuery) -> JobCreated:
+    """Finish a ``method=video`` attempt whose generation was left unfinished (``video-request.json``): asks the video
+    provider again by its request_id, nothing is submitted. Needs the video provider, not Codex."""
+    cd, plan = load_cd_plan(request, cid)
+    unit, d, _ = resolve(plan, action, direction)
+    if not re.fullmatch(r"\d{3}", aid) or not (cd / unit / "attempts" / aid).is_dir():
+        raise ApiError(404, "not_found", f"{unit} attempt {aid!r} does not exist")
+    adir = cd / unit / "attempts" / aid
+    if plan["actions"][action].get("method", "grid") != "video" or not (adir / "video-request.json").is_file() \
+            or (adir / "raw.png").exists():
+        raise ForgeError("not_resumable", f"{unit} attempt {aid} has no unfinished video request", EXIT_PRECONDITION)
+    require_video()
+    direction_out = d if len(plan["directions"]) > 1 else None
+    job = request.app.state.jobs.submit("action_generate", cid, job_tasks.video_resume(cd, action, direction_out, aid),
+                                        action=action, direction=direction_out, expected_s=SECONDS_PER_CALL)
+    return JobCreated(job=job)
+
+
 @router.post(BASE + "/generate", status_code=202)
 async def generate_action(request: Request, cid: str, action: str, body: PromptRequest | None = None,
                           direction: Direction | None = DirectionQuery) -> JobCreated:

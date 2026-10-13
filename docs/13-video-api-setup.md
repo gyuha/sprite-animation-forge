@@ -89,7 +89,7 @@ uv run pytest -m live -k video -q
 | `video_not_configured` | 인증 정보를 못 찾음 | 2단계, 서버 재시작 |
 | `video_auth_failed` | 401/403 | 키 만료·권한 확인, `grok login` 재실행 |
 | `video_request_failed` | 그 외 HTTP 오류 (429 한도 초과 포함, 자동 재시도 3회 후 실패) | 콘솔의 한도·잔액 확인, 잠시 후 재시도 |
-| `video_unfinished` | 클립은 만들어졌는데(과금 가능) 내려받지 못했거나 완료 응답에 주소가 없음. 오류 줄에 `request_id`가 남음 | 재과금 없이 이어받기(`resume`, 다음 단계에서 제공) |
+| `video_unfinished` | 클립은 만들어졌는데(과금 가능) 내려받지 못했거나 완료 응답에 주소가 없음. 오류 줄에 `request_id`가 남음 | 재과금 없이 이어받기: `uv run python sprite-animation-forge/scripts/forge.py resume <캐릭터> <액션> --attempt <NNN>` (Web API는 `POST …/attempts/{aid}/resume`). 같은 attempt가 완료되고 새 attempt는 만들어지지 않는다 |
 | `video_content_policy` | 서버가 콘텐츠 정책으로 거절 | 프롬프트·첫 프레임을 바꿔 다시 시도 |
 | `video_failed` | 서버가 생성 실패/만료 보고 | 프롬프트 변경(콘텐츠 정책 가능), 재시도 |
 | `video_timeout` | 제한 시간(기본 600초) 내 미완료 | 재시도, 해상도 낮추기 |

@@ -64,6 +64,24 @@ def action_generate(cd: Path, action: str, direction: str | None, extra: str | N
     return run
 
 
+def video_resume(cd: Path, action: str, direction: str | None, attempt: str):
+    """Finish an unfinished ``method=video`` attempt by its request_id (nothing is submitted), then process + QC it."""
+    def run(ctx: JobContext) -> dict:
+        plan = load_plan(cd)
+        ctx.attempt(attempt)
+        generation.resume_video_unit(cd, plan, action, direction, attempt, codex_timeout(), video_provider=ctx.video_provider,
+                                     on_progress=ctx._provider_event)
+        ctx.stage("processing")
+        try:
+            res = workflow.process_attempt(cd, plan, action, direction, attempt)
+        except ForgeError as exc:
+            raise ForgeError(exc.code, exc.message, exc.exit_code, {**exc.extra, "attempt": attempt}) from None
+        ctx.stage("qc")
+        return {"attempt": attempt, "qc_status": res["qc"]["status"], "accepted": False}
+
+    return run
+
+
 def vision_review(cd: Path, action: str, direction: str | None, attempt: str):
     def run(ctx: JobContext) -> dict:
         ctx.stage("generating")
