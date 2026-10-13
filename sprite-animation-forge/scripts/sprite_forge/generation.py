@@ -142,7 +142,8 @@ def _assemble_video_attempt(cd, plan, action, unit, attempt, res, provider_name,
         frames, fps = video_sprite.extract_frames(res.video_path, adir / ".clip-frames")
         sheet, info = video_sprite.build_raw_sheet(frames, act["frames"], rows, cols, plan["key_color"], act["loop"],
                                                    cycles=act.get("cycles"), min_len=act.get("min_len"),
-                                                   max_len=act.get("max_len"), foot=foot_view(plan, action))
+                                                   max_len=act.get("max_len"), foot=foot_view(plan, action),
+                                                   repair=act.get("repair", "auto") if foot_view(plan, action) else "off")
     except ForgeError as exc:
         raise _video_failure(cd, plan, action, unit, attempt, exc.code, exc.message) from None
     finally:

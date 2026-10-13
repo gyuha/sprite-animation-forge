@@ -23,6 +23,8 @@ export interface Health {
   codex: { installed: boolean; version: string | null; tested_version?: string; codex_home?: string; version_ok: boolean; logged_in: boolean; auth: string | null; image_generation: boolean }
   /** optional video provider (docs/13); not connected never makes `ready` false */
   video?: { provider: string; configured: boolean; auth: string | null; model?: string }
+  /** optional frame interpolator for jump-frame repair (docs/13 section 8); informational */
+  rife?: { installed: boolean; bin: string | null; source: string | null }
   python: Record<string, string | null>
 }
 export interface CharacterCard {

@@ -82,12 +82,13 @@ OVERRIDE_KEYS = {
     "kind": "str", "frames": "int", "grid": "str", "loop": "bool", "fps": "int", "anchor": "str",
     "x_anchor": "str", "scale_strategy": "str", "components": "str", "qc_profile": "str",
     "motion": "str", "poses": "pipes", "directions": "csv", "method": "str",
-    "cycles": "int", "min_len": "int", "max_len": "int", "max_jolt": "float",  # method=video: loop cut hints (cycles in the cut, period window in source frames)
+    "cycles": "int", "min_len": "int", "max_len": "int", "max_jolt": "float", "repair": "str",  # method=video: loop cut hints (cycles in the cut, period window in source frames)
 }
 # generation method per action (.forge/CONTEXT.md "생성 방식"): grid = one sheet per call; breathe = one still +
 # deterministic breathing; video = generated clip converted to sprites (needs a connected video provider)
 HANDED = ("none", "left", "right")  # the character's own hand that holds an item; "none" = symmetric, mirror allowed
 METHODS = ("grid", "breathe", "video")
+REPAIR_MODES = ("auto", "on", "off")  # method=video walk/run loops: remake jump frames with RIFE (auto = only if found, on = require it)
 BREATHE_FRAMES = 6
 MANY_FRAMES = 8  # grid actions with this many frames or more get a `frames_many` warning in plan.assumptions
 
@@ -151,6 +152,8 @@ def parse_overrides(items) -> dict[str, dict]:
         if key not in OVERRIDE_KEYS:
             raise ForgeError("invalid_override", f"unknown key {key!r}; choose from {sorted(OVERRIDE_KEYS)}")
         value = _coerce(key, raw)
+        if key == "repair" and value not in REPAIR_MODES:
+            raise ForgeError("invalid_override", f"repair={raw!r}; choose from {list(REPAIR_MODES)}")
         if key == "method" and value not in METHODS:
             raise ForgeError("invalid_override", f"method={raw!r}; choose from {list(METHODS)}")
         out.setdefault(action, {})[key] = value
@@ -196,7 +199,7 @@ def _build_action(name: str, ov: dict) -> dict:
             action["frames"] = BREATHE_FRAMES
     # key order: stable, readable
     order = ["kind", "method", "frames", "grid", "loop", "fps", "anchor", "scale_strategy", "x_anchor",
-             "components", "qc_profile", "motion", "poses", "directions", "cycles", "min_len", "max_len", "max_jolt"]
+             "components", "qc_profile", "motion", "poses", "directions", "cycles", "min_len", "max_len", "max_jolt", "repair"]
     action = {k: action[k] for k in order if k in action}
     r, c = (int(x) for x in action["grid"].split("x"))
     if (r * c < action["frames"] and method != "breathe") or r < 1 or c < 1:

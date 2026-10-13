@@ -127,3 +127,45 @@ looping 걷기·달리기(단일 방향)는 컷의 시작을 발이 땅에 닿�
 | `head_move` | 머리 중심의 최대 이동폭 ÷ 키 |
 
 plan `max_jolt`를 지정하면(`--set walk.max_jolt=0.08`) 처리(`process`)할 때 지표가 그 값을 넘으면 `process.json`의 `warnings`에 `jolt_exceeded: …`가 들어간다. 지정하지 않으면 경고는 없다(게이트 없음). QC 항목이 아니라 처리 경고다.
+
+## 8. 프레임 보간(RIFE) — 선택
+
+걷기·달리기 루프에서 영상 모델이 한 프레임만 몸을 엉뚱한 곳에 그리면(점프 프레임) 모든 정지 화면은 멀쩡한데 재생하면 덜컥거린다. 그런 프레임을 **이웃 두 프레임 사이로 다시 만드는** 데 광학 흐름 보간기 [rife-ncnn-vulkan](https://github.com/nihui/rife-ncnn-vulkan)을 쓴다. **선택 기능**이고, 없어도 모든 경로가 동작한다(아래 표).
+
+### 설치와 확인 (자동 설치는 하지 않는다)
+
+```bash
+# 1) 릴리스를 직접 받아 풀고(공식 저장소 Releases, 모델 폴더 rife-v4.6 포함) 실행 파일 위치를 알려 준다
+export SPRITE_FORGE_RIFE_BIN=/path/to/rife-ncnn-vulkan      # 또는 PATH에 rife-ncnn-vulkan
+export SPRITE_FORGE_RIFE_MODEL=/path/to/rife-v4.6            # 선택: 모델 폴더 (실행 파일 옆의 기본 모델을 쓰면 생략)
+
+# 2) 확인
+uv run python sprite-animation-forge/scripts/forge.py doctor     # "rife": {"installed": true, "bin": "...", "source": "env"}
+```
+
+- 찾는 순서: `SPRITE_FORGE_RIFE_BIN`(실행 가능한 파일) → `PATH`의 `rife-ncnn-vulkan`. `doctor`·`/api/health`의 `rife`는 정보용이라 없어도 `ready`·`warnings`가 달라지지 않는다.
+- **확인 필요**: 이 저장소는 실제 RIFE를 실행해 보지 못했다. 호출 인자(`-0 -1 -o -s [-m]`)와 모델 폴더 규약은 공식 문서·sprite-gen 설명 기준이며, 첫 사용 때 `forge.py generate`가 `rife_failed`로 끝나면 바이너리를 직접 실행해 인자를 확인한다(호출은 `interpolate.RifeNcnn._argv` 한 곳). 문서의 맥(Apple GPU)·리눅스(llvmpipe) 속도 수치는 sprite-gen 측정값이며 이 저장소 측정이 아니다.
+
+### 동작: plan `repair` (걷기·달리기 루프에만 적용)
+
+| `repair` | RIFE 있음 | RIFE 없음 |
+|---|---|---|
+| `auto`(기본) | 점프 프레임이 있으면 다시 만든다 | 원본 그대로 자르고 `video-meta.json`·`process.json` 경고에 `rife_unavailable: …`. **RIFE는 프레임을 만들어야 할 때만 찾는다**(매끈한 걷기는 찾지도 않음) |
+| `on` | 위와 같음 | `rife_missing` 오류(종료 코드 3) |
+| `off` | 보정 안 함 | 보정 안 함 |
+
+RIFE가 **있는데 실패하면**(Vulkan을 못 여는 바이너리 등) 모든 모드에서 `rife_failed` 오류다 — 경고로 두면 고장난 설치가 숨는다.
+
+판정과 보정 규칙(`video_repair.py`):
+- 줄이기 *전의 조밀한 컷*(≥ 12프레임)에서 읽는다. 6~8프레임으로 줄인 시퀀스는 너무 성겨 정상 걷기도 점수가 높다. 컷이 12프레임보다 짧으면 시도하지 않는다(`jump_repair.why: cut_too_short`).
+- 점프 프레임 = 두 이웃 사이 거리는 작은데 자기와 이웃 사이 거리는 큰 프레임(프리멀티플라이 RGBA 기준 `(d₁+d₂)/max(d_이웃간, 0.5×보통 스텝) ≥ 2.5`, 그리고 보통 스텝의 1.2배 넘게 어긋남). 스윙의 극점은 걸리지 않는다.
+- 다시 만든 프레임은 컷의 최악 점수가 90% 아래로 내려갈 때만 채택한다(원본 상자·기준으로 측정). 아니면 `jump_repair.unmade`에 남기고 원본을 둔다. 루프당 최대 3프레임.
+- RIFE는 알파를 모르므로 한 프레임을 두 이미지(색 — 몸의 자기 색을 투명 영역으로 번지게 한 것 / 커버리지 — 회색 이미지)로 따로 보간해 합친다. 커버리지 2/255 미만은 버려 흐린 후광이 생기지 않는다.
+
+### 유령 프레임
+
+영상 모델이 두 포즈를 겹친 프레임(크로스페이드)을 내놓는 경우가 있다. 크로마 알파는 키 색 배경에서 포화돼 이런 프레임도 불투명해 보이므로 **키 색까지의 거리**로 "반쯤만 있는 화소" 비율을 잰다(정상 프레임 ≈ 0, 두 포즈를 섞은 프레임 0.3~0.5). 보통 비율의 1.8배 이상이고 0.12 이상이면 유령이다.
+
+- 옆의 깨끗한 프레임이 있으면 그 프레임에 자리를 내준다(이전 우선, 없으면 다음). `video-meta.json`의 `ghost.given_way`.
+- 옆에 깨끗한 프레임이 없으면 그대로 두고 **재촬영 사유** `filmed-ghost`를 `retake`에 남기며 처리 경고 `retake: filmed-ghost (frame N)`가 생긴다.
+- 다시 만든(보간) 프레임이 두 그림을 크로스페이드하면 측정해 `jump_repair.crossfade`에 이름만 붙이고 버리지 않는다.

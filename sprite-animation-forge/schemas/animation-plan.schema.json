@@ -73,6 +73,7 @@
         "min_len": { "type": "integer", "minimum": 2 },
         "max_len": { "type": "integer", "minimum": 2 },
         "max_jolt": { "type": "number", "minimum": 0 },
+        "repair": { "enum": ["auto", "on", "off"] },
         "directions": { "$ref": "#/$defs/directions" }
       }
     }

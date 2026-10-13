@@ -24,7 +24,9 @@ from .errors import EXIT_PRECONDITION, ForgeError
 from .pipeline.chroma import compute_alpha, estimate_background
 from .pipeline.scale import resample
 from .qc_motion import thumb
+from .video_ghost import crossfade, give_way
 from .video_gait import foot_strike_start, jolt_metrics
+from .video_repair import repair_jumps
 from .video_loop import detect_held, distance_matrix, find_loop, reduce_indices, seam_pop, select_oneshot
 
 CANVAS_FILL = 0.6        # character height / canvas height of the first frame
@@ -153,10 +155,12 @@ def hold_size(rgbas: list[np.ndarray]) -> tuple[list[np.ndarray], dict]:
 
 def build_raw_sheet(frames: list[Path], n: int, rows: int, cols: int, key_hex: str, loop: bool,
                     cell: int = SHEET_CELL, *, size_hold: bool = True, cycles: int | None = None,
-                    min_len: int | None = None, max_len: int | None = None, foot: str | None = None) -> tuple[Image.Image, dict]:
+                    min_len: int | None = None, max_len: int | None = None, foot: str | None = None,
+                    repair: str = "off", interpolator=None) -> tuple[Image.Image, dict]:
     """Pick ``n`` frames of the clip as a sheet in the plan's grid. ``min_len``/``max_len`` are the loop's period window in
     source frames (a clip that holds each drawing for k frames reads them as drawings: the window is divided by k). ``foot``
-    (``"side"``/``"front"``, a looping walk or run) starts the loop on a foot strike and records the jolt index."""
+    (``"side"``/``"front"``, a looping walk or run) starts the loop on a foot strike and records the jolt index. ``repair``
+    (``"off"``/``"auto"``/``"on"``, docs/14) remakes jump frames of a loop with ``interpolator`` (RIFE), see ``video_repair``."""
     if n > rows * cols:
         raise ForgeError("invalid_params", f"{n} frames do not fit a {rows}x{cols} grid")
     rgbas = [_rgba(p) for p in frames]
@@ -186,12 +190,30 @@ def build_raw_sheet(frames: list[Path], n: int, rows: int, cols: int, key_hex: s
     else:
         start, end = select_oneshot(dist, n)
         span = end - start
-    picked = [unique[min(i, len(unique) - 1)] for i in reduce_indices(start, span, n, loop)]
     key = _key_rgb(key_hex)
+    positions = reduce_indices(start, span, n, loop)
+    picked = [unique[min(i, len(unique) - 1)] for i in positions]
+    if loop:  # a hitch is read (and repaired) on the dense cut, then the sheet's frames are taken from it
+        cut_src = [unique[min(i, len(unique) - 1)] for i in range(start, start + span)]
+        cut, ghost = give_way([rgbas[i] for i in cut_src], key)  # a frame that cross-fades two drawings gives way to its clean neighbour
+        cut, report = repair_jumps(cut, interpolator, repair)
+        report["made_source"] = [cut_src[o] for o in report["made"]]
+        report["crossfade"] = crossfade(cut, report["made"])  # a made frame that cross-fades is measured and named, and kept
+        ghost["ghosts"] = [cut_src[o] for o in ghost["ghosts"]]
+        ghost["given_way"] = [{"frame": cut_src[g["frame"]], "replaced_by": cut_src[g["replaced_by"]]} for g in ghost["given_way"]]
+        ghost["retake"] = [{"reason": r["reason"], "frame": cut_src[r["frame"]]} for r in ghost["retake"]]
+        report["warnings"] = [*report["warnings"], *(f"retake: {r['reason']} (frame {r['frame']})" for r in ghost["retake"])]
+        seq = [cut[min(max(pos - start, 0), len(cut) - 1)] for pos in positions]
+        report["made_in_sheet"] = [k for k, pos in enumerate(positions) if pos - start in report["made"]]
+    else:
+        report = {"applied": False, "jumps": [], "made": [], "unmade": [], "why": "not_a_loop", "warnings": [], "crossfade": []}
+        ghost = {"ghosts": [], "given_way": [], "retake": []}
+        seq = [rgbas[min(idx, len(rgbas) - 1)] for idx in picked]
     sheet = Image.new("RGB", (cols * cell, rows * cell), key)
-    for k, idx in enumerate(picked):
-        f = rgbas[min(idx, len(rgbas) - 1)]
+    for k, f in enumerate(seq):
         sheet.paste(_square_cell(f[..., :3], f[..., 3], key, cell), ((k % cols) * cell, (k // cols) * cell))
     info.update({"source_frames": len(frames), "selected": "loop" if loop else "oneshot", "start": start, "span": span,
-                 "indices": picked, "size_hold": hold, "held": {"ratio": round(held_ratio, 4), "drawings": len(unique)}})
+                 "indices": picked, "size_hold": hold, "held": {"ratio": round(held_ratio, 4), "drawings": len(unique)},
+                 "jump_repair": report, "made": report.get("made_in_sheet", []), "ghost": ghost, "retake": ghost["retake"],
+                 "warnings": report["warnings"]})
     return sheet, info
