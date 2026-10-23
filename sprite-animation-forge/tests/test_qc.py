@@ -279,15 +279,15 @@ def test_qc09_skipped_for_native_alpha():
 # --- applicability / score / report ------------------------------------------------------------
 
 @pytest.mark.parametrize("action,skipped", [
-    ("idle", {"QC-07"}),
+    ("idle", {"QC-07", "QC-14"}),
     ("walk", set()),
-    ("run", set()),
-    ("attack", set()),
-    ("hurt", set()),
-    ("jump", {"QC-02", "QC-07"}),
-    ("fall", {"QC-02", "QC-07"}),
-    ("death", {"QC-02", "QC-03", "QC-04", "QC-07", "QC-10"}),
-    ("fx", {"QC-02", "QC-03", "QC-04", "QC-07", "QC-10", "QC-11", "QC-12", "QC-13"}),
+    ("run", {"QC-14"}),
+    ("attack", {"QC-14"}),
+    ("hurt", {"QC-14"}),
+    ("jump", {"QC-02", "QC-07", "QC-14"}),
+    ("fall", {"QC-02", "QC-07", "QC-14"}),
+    ("death", {"QC-02", "QC-03", "QC-04", "QC-07", "QC-10", "QC-14"}),
+    ("fx", {"QC-02", "QC-03", "QC-04", "QC-07", "QC-10", "QC-11", "QC-12", "QC-13", "QC-14"}),
 ])
 def test_qc_applicability_matrix(action, skipped):
     m = qc.applicability(action)
@@ -346,7 +346,7 @@ def test_qc_report_structure_matches_doc():
     assert rep["frames"] == 4 and rep["recommendations"] == []
     assert set(rep["checks"]) == {"edge_touch", "scale_variance", "anchor_variance",
                                   "duplicate_frames", "empty_frames"}
-    assert [r["id"] for r in rep["results"]] == [f"QC-{i:02d}" for i in range(1, 14)]
+    assert [r["id"] for r in rep["results"]] == [f"QC-{i:02d}" for i in range(1, 15)]
     assert next(r for r in rep["results"] if r["id"] == "QC-08")["grade"] == "not_run"
     assert {"index", "bbox_h", "feet_y_strict", "x_metric", "dhash"} == set(rep["per_frame"][0])
     assert rep["status"] in ("pass", "warn", "fail")

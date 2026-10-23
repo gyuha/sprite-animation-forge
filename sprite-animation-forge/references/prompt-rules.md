@@ -41,8 +41,9 @@ for user-requested style or motion details.
 | `duplicate_frames` | QC-06 | each frame a clearly different pose |
 | `bg_mismatch` | QC-09 | one flat key-colored background everywhere |
 | `identity_drift` | manual | match the reference exactly |
+| `gait_phase` | QC-14 | walk advances evenly; second half = first half with left/right swapped; last frame is not frame 1 |
 
-Motion library (default frame counts): idle breathing; walk contact/down/passing x2 sides; run with 10-15
+Motion library (default frame counts): idle breathing; walk evenly timed contact/down/up x2 (left/right swapped, frame 6 not a copy of frame 1; a side-view 6-frame walk attaches a stick-figure gait guide as Image 2 unless a direction reference already takes that slot); run with 10-15
 degree forward lean, contact/push-off/flight; attack ready/anticipation/swing/impact/follow-through/recovery
 (feet planted); shoot aim/fire/recoil/settle; cast gather/raise/channel/release; jump crouch/take-off/rising/apex;
 fall 2 flutter poses; hurt flinch/recoil/recover/guard; death hit/stagger/buckle/fall/ground/bounce/settle/still.

@@ -57,8 +57,9 @@ from .errors import ForgeError
 from .layout_guide import safe_area
 from .plan import DIRECTIONS_BY_VIEW, resolve_unit
 
-PROMPT_TEMPLATE_VERSION = "action_prompt@4"
+PROMPT_TEMPLATE_VERSION = "action_prompt@5"
 VIDEO_PROMPT_VERSION = "video_prompt@2"
+GAIT_PROMPT_VERSION = "gait_prompt@1"  # a side-view 6-frame walk that attaches the gait guide (forge task #42); without it, action_prompt
 STILL_PROMPT_VERSION = "still_prompt@1"  # a single still prompt that attaches the layout guide (docs/14); the old still prompt keeps action_prompt@3
 HEADROOM_PCT = {"attack": 20, "jump": 20}  # actions whose poses reach above the standing head: empty cell height above it
 MAX_PROMPT_CHARS = 6000
@@ -66,7 +67,7 @@ MAX_EXTRA_CHARS = 500
 EDGE_TOUCH_MARGIN_PCT = 15
 KEY_NAMES = {"#FF00FF": "magenta", "#00FF00": "pure green"}
 
-HEADINGS = ("REFERENCE IDENTITY", "DIRECTION REFERENCE", "LAYOUT GUIDE", "ACTION", "ADDITIONAL DIRECTION", "RECOVERY",
+HEADINGS = ("REFERENCE IDENTITY", "DIRECTION REFERENCE", "LAYOUT GUIDE", "GAIT GUIDE", "ACTION", "ADDITIONAL DIRECTION", "RECOVERY",
             "CONSISTENCY RULES", "GRID RULES", "BACKGROUND RULE")
 REQUIRED_HEADINGS = ("REFERENCE IDENTITY", "ACTION", "CONSISTENCY RULES", "GRID RULES", "BACKGROUND RULE")
 FOOTER = "No text. No watermark. No UI."
@@ -234,6 +235,12 @@ def _sequence(action: str, act: dict, lib: dict | None, frames: int, loop: bool)
 LOCOMOTION_ACTIONS = ("walk", "run")
 
 
+def _even_walk(act: dict, action: str, lib: dict | None) -> bool:
+    """The 6-frame library walk (evenly timed poses, left/right named): its loop line and its gait guide."""
+    return (action == "walk" and act["loop"] and not act.get("poses") and lib is not None and lib["frames"] == act["frames"]
+            and act.get("method", "grid") == "grid" and act.get("kind") != "fx")
+
+
 def _action_block(plan: dict, profile: dict | None, action: str, multi_direction: bool, direction: str | None = None) -> str:
     act = plan["actions"][action]
     frames, loop = act["frames"], act["loop"]
@@ -243,7 +250,8 @@ def _action_block(plan: dict, profile: dict | None, action: str, multi_direction
     if description is None:
         raise ForgeError("invalid_params", f"custom action {action!r} has no motion description")
     loop_rules = _sections("action_loop_line.txt")
-    loop_line = loop_rules["loop" if loop else "oneshot"][""].format(frames=frames)
+    even_walk = _even_walk(act, action, lib)
+    loop_line = loop_rules["loop_walk" if even_walk else "loop" if loop else "oneshot"][""].format(frames=frames)
     return _fill(
         "action.txt",
         facing_line=_template("action_facing.txt") if multi_direction else "",
@@ -365,6 +373,13 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
     if _needs_direction_reference(plan, direction) and len(refs) == 1:
         warnings.append("no_representative_direction_unit")
     guide = False
+    gait = False
+    if _even_walk(act, action, lib) and direction in ("right", "left"):  # the stick figures are drawn in profile
+        gait = len(refs) == 1
+        if gait:
+            refs = [*refs, "gait_guide"]
+        else:
+            warnings.append("gait_guide_skipped")
     if breathe:  # a still is sized by a layout guide as the second reference; with two references already, skip it
         guide = len(refs) == 1
         if guide:
@@ -378,8 +393,10 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
         _sections("art_style.txt")["style"][plan["art_style"]],
         _camera_block(plan, direction),
     ]
-    if len(refs) > 1 and not guide:
+    if len(refs) > 1 and not guide and not gait:
         blocks.append(_template("direction_reference.txt"))
+    if gait:
+        blocks.append(_fill("gait_guide.txt", key_name=_key_name(key_hex), key_hex=key_hex))
     if guide:
         lo, hi, crown, floor = safe_area(margin_pct)
         blocks.append(_fill("layout_guide.txt", key_name=_key_name(key_hex), key_hex=key_hex, lo=lo, hi=hi, crown=crown, floor=floor))
@@ -404,7 +421,8 @@ def build_prompt(plan: dict, profile: dict | None, action: str, direction: str |
     problems = validate_prompt(text)
     if problems:
         raise ForgeError("invalid_prompt", "; ".join(problems))
-    return PromptResult(text, STILL_PROMPT_VERSION if guide else PROMPT_TEMPLATE_VERSION, refs, warnings, margin_pct)
+    version = STILL_PROMPT_VERSION if guide else GAIT_PROMPT_VERSION if gait else PROMPT_TEMPLATE_VERSION
+    return PromptResult(text, version, refs, warnings, margin_pct)
 
 
 def build_canonical_prompt(description: str, *, art_style: str = "clean_hd", view: str = "side",

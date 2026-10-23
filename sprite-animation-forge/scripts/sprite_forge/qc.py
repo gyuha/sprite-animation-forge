@@ -3,13 +3,15 @@
 Public API
 ----------
 ``run_qc(process_result_or_data, frames=None, action="walk", params=None, profile=None, *,
-attempt=None, loop=None, qc_profile=None) -> dict``
+attempt=None, loop=None, qc_profile=None, gait_view=None) -> dict``
     Returns the ``qc-report.json`` dict. ``process_result_or_data`` is a ``ProcessResult`` or
     its ``process.json`` dict; ``frames`` are the output RGBA frames (taken from the
     ``ProcessResult`` when omitted). ``params`` (``ProcessParams``) optionally overrides
     ``cell_w`` / ``x_anchor`` otherwise read from ``data["params"]``. ``profile`` is a
     ``sprite_forge.pipeline.scale.ScaleProfile`` or dict (``body_height`` is used by QC-07).
     ``qc_profile`` overrides the action -> QC profile mapping (needed for fx or custom names).
+    ``gait_view`` (``"side"``/``"front"``, see ``gait_view(direction)``) is how QC-14 reads the legs; without it
+    QC-14 is ``skipped`` (reason ``no_view``).
 ``select_best_attempt(reports) -> dict``   docs/06 section 4.2.
 ``score_for(results) -> int``, ``overall_status(results) -> str``, ``dhash(rgba) -> int``.
 
@@ -75,6 +77,9 @@ QC11_WARN_ONLY = 0.30                 # action/airborne: big pose changes are no
 QC12_WARN, QC12_FAIL = 0.80, 0.60     # min palette intersection
 QC13_WARN = 0.008                     # motion spread below this = (nearly) static; warn only (QC-06 already flags copies,
                                       # and a deliberately subtle motion must not block adoption)
+QC14_WARN, QC14_FAIL = 0.30, 0.45     # gait phase deviation (walk); the 7 walks of action_prompt@4 judged unnatural by eye
+                                      # scored 0.49-0.91 (forge task #41). warn_only in MATRIX until recalibrated: in task #42
+                                      # the one guided walk judged natural scored 0.55, so a fail would regenerate a good walk
 
 PROFILE_BY_ACTION = {
     "idle": "locomotion", "walk": "locomotion", "run": "locomotion",
@@ -89,18 +94,20 @@ LOOP_ACTIONS = ("idle", "walk", "run", "fall")
 _ALL = {"QC-01": "apply", "QC-05": "apply", "QC-06": "apply", "QC-09": "apply"}
 MATRIX = {
     "locomotion": {**_ALL, "QC-02": "apply", "QC-03": "apply", "QC-04": "apply", "QC-07": "apply",
-                   "QC-10": "apply", "QC-11": "apply", "QC-12": "apply", "QC-13": "apply"},
+                   "QC-10": "apply", "QC-11": "apply", "QC-12": "apply", "QC-13": "apply", "QC-14": "warn_only"},
     "action": {**_ALL, "QC-02": "warn_only", "QC-03": "apply", "QC-04": "info", "QC-07": "apply",
-               "QC-10": "apply", "QC-11": "warn_only", "QC-12": "apply", "QC-13": "apply"},
+               "QC-10": "apply", "QC-11": "warn_only", "QC-12": "apply", "QC-13": "apply", "QC-14": "skip"},
     "airborne": {**_ALL, "QC-02": "skip", "QC-03": "apply", "QC-04": "apply", "QC-07": "skip",
-                 "QC-10": "apply", "QC-11": "warn_only", "QC-12": "apply", "QC-13": "apply"},
+                 "QC-10": "apply", "QC-11": "warn_only", "QC-12": "apply", "QC-13": "apply", "QC-14": "skip"},
     "terminal": {**_ALL, "QC-02": "skip", "QC-03": "skip", "QC-04": "skip", "QC-07": "skip",
-                 "QC-10": "skip", "QC-11": "info", "QC-12": "apply", "QC-13": "apply"},
+                 "QC-10": "skip", "QC-11": "info", "QC-12": "apply", "QC-13": "apply", "QC-14": "skip"},
     "fx": {**_ALL, "QC-02": "skip", "QC-03": "skip", "QC-04": "skip", "QC-07": "skip",
-           "QC-10": "skip", "QC-11": "skip", "QC-12": "skip", "QC-13": "skip"},
+           "QC-10": "skip", "QC-11": "skip", "QC-12": "skip", "QC-13": "skip", "QC-14": "skip"},
 }
-# idle is the scale reference, so QC-07 does not apply to it
-ACTION_OVERRIDES = {"idle": {"QC-07": "skip", "QC-06": "info", "QC-13": "info"}}
+# idle is the scale reference, so QC-07 does not apply to it; QC-14's even-cycle shape is the walk's (run has no
+# measured walks to calibrate on)
+ACTION_OVERRIDES = {"idle": {"QC-07": "skip", "QC-06": "info", "QC-13": "info", "QC-14": "skip"},
+                    "run": {"QC-14": "skip"}}
 
 
 def applicability(action: str, qc_profile: str | None = None) -> dict[str, str]:
@@ -305,6 +312,33 @@ def qc13(frames, mode: str) -> dict:
     return {"id": "QC-13", "grade": grade, "value": _r(value, 4), "limit": {"warn": QC13_WARN}}
 
 
+def qc14_grade(deviation: float) -> str:
+    return "fail" if deviation >= QC14_FAIL else "warn" if deviation >= QC14_WARN else "pass"
+
+
+def gait_view(direction: str | None) -> str | None:
+    """How QC-14 reads the legs for a direction: the side spread for right/left, the foot lift for down/up."""
+    return {"right": "side", "left": "side", "down": "front", "up": "front"}.get(direction)
+
+
+def qc14(frames, action: str, loop: bool, view: str | None, mode: str = "apply") -> dict:
+    if action != "walk":  # a custom action with qc_profile=locomotion is not a walk cycle
+        return _skipped("QC-14", "not_applicable")
+    if not loop:
+        return _skipped("QC-14", "not_loop")
+    if view is None:
+        return _skipped("QC-14", "no_view")
+    signal = qc_motion.leg_signal(frames, view)
+    value = qc_motion.gait_phase_from_signal(signal, view)
+    if value is None:
+        return _skipped("QC-14", "no_gait")
+    grade = qc14_grade(value)
+    if mode == "warn_only" and grade == "fail":
+        grade = "warn"
+    return {"id": "QC-14", "grade": grade, "value": _r(value, 3), "limit": {"warn": QC14_WARN, "fail": QC14_FAIL},
+            "view": view, "signal": [None if v is None else _r(v, 3) for v in signal]}
+
+
 def qc09(bg_distance) -> dict:
     if bg_distance is None:
         return _skipped("QC-09", "no_background")
@@ -326,7 +360,7 @@ def overall_status(results) -> str:
 
 
 def run_qc(process_result_or_data, frames=None, action="walk", params=None, profile=None, *,
-           attempt=None, loop=None, qc_profile=None) -> dict:
+           attempt=None, loop=None, qc_profile=None, gait_view=None) -> dict:
     if isinstance(process_result_or_data, ProcessResult):
         data = process_result_or_data.data
         frames = process_result_or_data.frames if frames is None else frames
@@ -370,6 +404,7 @@ def run_qc(process_result_or_data, frames=None, action="walk", params=None, prof
         item("QC-11", lambda mode: qc11(frames, mode)),
         item("QC-12", lambda _: qc12(frames)),
         item("QC-13", lambda mode: qc13(frames, mode)),
+        item("QC-14", lambda mode: qc14(frames, action, loop, gait_view, mode)),
     ]
     by_id = {r["id"]: r for r in results}
 

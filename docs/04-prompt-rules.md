@@ -107,7 +107,7 @@ Animate in place: the character does not travel across the cell.
 
 `walk`·`run`에는 `Animate in place` 뒤에 한 줄을 더 붙인다: `Show the {action} as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.` 방향이 `down`·`up`(정면·후면)이면 `Seen from this angle, the steps pass beside each other under the body; the feet never cross.`도 붙인다. (sprite-gen의 동영상 프롬프트 실측 요령을 이미지 프롬프트에 의역해 옮긴 것이며, 이미지 생성에서 실제로 효과가 있는지는 실제 Codex로 비교해 확인해야 한다.)
 
-`loop_line`은 loop 액션이면 `The last frame must flow seamlessly back into frame 1.`, 아니면 `This is a one-shot animation; frame {n} is the final pose.`이다.
+`loop_line`은 loop 액션이면 `The last frame must flow seamlessly back into frame 1.`, 아니면 `This is a one-shot animation; frame {n} is the final pose.`이다. 단, 라이브러리 포즈를 쓰는 6프레임 walk는 §4의 walk 전용 3줄을 쓴다.
 
 ### 3.6 ADDITIONAL DIRECTION (선택)
 
@@ -185,12 +185,14 @@ No text. No watermark. No UI.
 
 `Walk cycle. Arms swing opposite to the legs. Body bobs slightly.`
 
-1. contact: front leg extended, heel touching the ground, back leg behind
-2. down: weight shifts onto the front leg, body at its lowest
-3. passing: back leg passes the supporting leg, body at its highest
-4. contact (opposite leg): other leg now in front, heel touching the ground
-5. down (opposite leg)
-6. passing (opposite leg)
+1. contact: left foot forward, heel on the ground; right foot back on its toes; right arm forward, left arm back; legs at their widest
+2. down: weight settles onto the bent left leg, body lowest; right foot lifts off and starts swinging forward; legs half as wide as in frame 1; arms swinging back toward the sides
+3. up: right foot swings just past the left leg, off the ground; left leg straightens, body highest; legs half as wide as in frame 1; left arm slightly forward, right arm slightly back
+4. contact: frame 1 with left and right swapped (right foot forward, left arm forward)
+5. down: frame 2 with left and right swapped
+6. up: frame 3 with left and right swapped; it leads into frame 1 and is not the same pose as frame 1
+
+걷기는 **균등 위상**(`.forge/CONTEXT.md`)으로 정의한다. 6프레임이 각각 1/6 주기씩 나아가도록 2번은 60°(down), 3번은 120°(up) 자세다. 예전 순서 `contact → down → passing`은 고전 걷기의 `up`을 빼서 위상 간격이 1/8·1/8·2/8이 되었고, passing에서 다음 contact로 두 배를 건너뛰었다. 다리는 화면 앞뒤가 아니라 **캐릭터 자신의 left/right**로 부른다. 측면·정면·후면에서 같은 문구로 통하고, 4~6번이 1~3번의 복사가 아니라는 것을 말로 강제하기 위해서다. 이 포즈 목록을 쓸 때(walk, 6프레임, `poses` 지정 없음)는 반복 줄도 walk 전용 3줄(`action_loop_line.txt [loop_walk]`)로 바뀐다. 결과는 QC-14(docs/06)가 잰다.
 
 ### run — 6 frames, loop
 
@@ -333,16 +335,24 @@ Match the art style, line weight, and shading of the reference image exactly.
 
 Strict side view (profile), character facing right. Orthographic, no perspective.
 
+GAIT GUIDE
+- The second attached image is a gait guide, not a character: a flat magenta #FF00FF sheet laid out like this grid, with one gray stick figure per cell showing the pose of that frame.
+- In every stick figure the dark gray arm and leg are the character's left arm and leg, the light gray ones the right arm and leg.
+- Give the character in each cell the same leg and arm positions as the stick figure in the same cell; keep the character's own design and proportions.
+- Never draw the stick figures, their gray lines or the guide's colors in the result.
+
 ACTION
 Walk cycle. Arms swing opposite to the legs. Body bobs slightly.
 Frame sequence:
-1. contact: front leg extended, heel touching the ground, back leg behind
-2. down: weight shifts onto the front leg, body at its lowest
-3. passing: back leg passes the supporting leg, body at its highest
-4. contact (opposite leg): other leg now in front, heel touching the ground
-5. down (opposite leg)
-6. passing (opposite leg)
-The last frame must flow seamlessly back into frame 1.
+1. contact: left foot forward, heel on the ground; right foot back on its toes; right arm forward, left arm back; legs at their widest
+2. down: weight settles onto the bent left leg, body lowest; right foot lifts off and starts swinging forward; legs half as wide as in frame 1; arms swinging back toward the sides
+3. up: right foot swings just past the left leg, off the ground; left leg straightens, body highest; legs half as wide as in frame 1; left arm slightly forward, right arm slightly back
+4. contact: frame 1 with left and right swapped (right foot forward, left arm forward)
+5. down: frame 2 with left and right swapped
+6. up: frame 3 with left and right swapped; it leads into frame 1 and is not the same pose as frame 1
+Every frame moves the stride forward by the same amount: one sixth of the cycle. Each arm swings opposite to its leg.
+Frames 4-6 are frames 1-3 with left and right swapped, legs and arms both; they are not copies.
+Frame 6 leads into frame 1 one even step later, just as frame 3 leads into frame 4.
 Animate in place: the character does not travel across the cell.
 Show the walk as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.
 
@@ -405,8 +415,17 @@ Animate this exact character in place: <title>.
 `method=breathe`처럼 **정지 1장**을 만들 때는 두 번째 참조 이미지로 레이아웃 가이드를 붙인다(`layout_guide.make_layout_guide`). 키 색 정사각 캔버스에 (1) 안전 영역 윤곽(가로·세로 `m%`~`100-m%`), (2) 머리 선(위에서 `2m%`), (3) 발 선(위에서 `100-2m%`)을 그린 이미지다. `m`은 프롬프트의 여백 수치와 같다(기본 8, `edge_touch` 복구 시 15). 프롬프트에는 같은 수치를 문장으로 적고(`LAYOUT GUIDE` 블록: "second attached image is a layout guide ... 8% to 92% ... 16% from the top ... 84% from the top"), 가이드의 선과 윤곽을 결과에 그리지 말라고 못 박는다.
 
 - 참조 이미지는 최대 2장이므로 이미 2장이 필요한 정지(다중 방향 플랜의 비대표 방향)에는 가이드를 붙이지 않고 `layout_guide_skipped` 경고를 낸다. 이때 프롬프트는 이전과 바이트 동일하다.
-- 가이드를 붙인 정지 프롬프트의 버전은 `still_prompt@1`, 그 외는 `action_prompt@4`이다(`generation.json`의 `prompt_template_version`).
+- 가이드를 붙인 정지 프롬프트의 버전은 `still_prompt@1`, 그 외는 `action_prompt@5`이다(`generation.json`의 `prompt_template_version`).
 - `generation.json`의 참조에는 `layout-guide`가 기록되고, attempt 폴더의 `ref-02.png`가 그 이미지다.
+
+### 10.1 자세 가이드 (측면 6프레임 걷기)
+
+라이브러리 포즈를 쓰는 **6프레임 walk**(`grid`, `poses` 지정 없음)를 **측면(right·left)**으로 만들 때는 두 번째 참조 이미지로 **자세 가이드**(`.forge/CONTEXT.md`)를 붙인다(`gait_guide.make_gait_guide`). 격자와 같은 칸 배치(칸당 256px)의 키 색 시트에, 칸마다 그 프레임의 균등 위상 자세를 막대 인형으로 그린다. 1번은 왼발이 앞인 접지, 4번은 좌우를 바꾼 접지이고, 팔은 같은 쪽 다리와 반대로 흔든다. 캐릭터의 **왼쪽 팔다리는 짙은 회색, 오른쪽은 옅은 회색**, 머리·몸통은 중간 회색이며, 안티앨리어싱 없이 이 세 회색과 키 색만 쓴다. 몸 높이는 레이아웃 가이드의 머리 선·발 선(위에서 16%·84%)을 따른다. 왼쪽을 보는 방향은 칸마다 좌우 반전한다.
+
+- 흔드는 다리는 무릎을 굽히지 않고 **발만 살짝 든다**. 정강이를 굽히면 발이 옆으로 움직여 다리 폭이 `|cos|` 모양에서 벗어나고, 가이드 자신이 QC-14 0.31을 받는다. 지금 그림은 QC-14 < 0.1(테스트로 고정).
+- 프롬프트에는 `GAIT GUIDE` 블록(레이아웃 가이드 자리)을 넣어 칸별 자세만 따르고 막대 인형·회색 선·가이드 색을 결과에 그리지 말라고 못 박는다.
+- 참조가 이미 2장인 경우(다중 방향 플랜의 비대표 측면 방향)는 붙이지 않고 `gait_guide_skipped` 경고를 낸다. 프롬프트는 `action_prompt@5`와 바이트 동일하다. 정면·후면 걷기와 다른 액션에는 붙이지 않는다(경고 없음).
+- 가이드를 붙인 프롬프트의 버전은 `gait_prompt@1`, `generation.json`의 참조에는 `gait-guide`가 기록되고 `ref-02.png`가 그 이미지다.
 
 ---
 

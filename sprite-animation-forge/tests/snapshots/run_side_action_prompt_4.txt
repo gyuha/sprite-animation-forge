@@ -1,0 +1,50 @@
+Create a 2x3 sprite animation grid of a 2D game character: run cycle, 6 frames.
+
+REFERENCE IDENTITY
+Same character as the attached reference image (Image 1). Preserve exactly:
+- silhouette: small chibi knight with a tall pointed hood and a long tattered cape
+- body proportions: short and stocky; head-to-body ratio: about 1:2.5
+- face: hidden by a steel visor helmet with three vertical slits
+- clothing: red pointed hood, red scarf-cape, steel plate armor, beige tunic with red stripes, brown belt with pouch
+- colors: primary #C8281E, #9A9CA0; secondary #E8D2A8, #6B3F1F
+- weapon: sheathed sword with a gold pommel, worn on the back
+- outline: dark brown outline; shading: soft painted cel shading
+Only pose, limb position, body lean, facial expression, weapon motion and secondary motion (hair, cloth) may change.
+Do not redesign, add, or remove any part of the character.
+
+Match the art style, line weight, and shading of the reference image exactly.
+
+Strict side view (profile), character facing right. Orthographic, no perspective.
+
+ACTION
+Run cycle. Body leans forward about 10-15 degrees. Strong arm swing.
+Frame sequence:
+1. contact: front foot strikes the ground under the body
+2. push-off: back leg drives, body low
+3. flight: both feet off the ground, legs spread
+4. contact (opposite leg)
+5. push-off (opposite leg)
+6. flight (opposite legs)
+The last frame must flow seamlessly back into frame 1.
+Animate in place: the character does not travel across the cell.
+Show the run as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.
+
+CONSISTENCY RULES
+- Identical character scale and camera distance in every cell.
+- The soles of the feet sit on the same horizontal baseline in every cell of a row.
+- Same facing direction (right) in every cell.
+- Full body visible in every cell. Nothing cropped.
+
+GRID RULES
+- 2 rows x 3 columns = 6 equal cells. Frames read left-to-right, top-to-bottom.
+- Exactly one complete character per cell.
+- Leave at least 8% empty background margin on every side of every cell.
+- No part of the character, weapon, or effect may cross into another cell.
+- No grid lines, borders, separators, labels, or numbers.
+
+BACKGROUND RULE
+- Fill the entire background with flat, solid magenta #FF00FF.
+- No gradient, texture, vignette, floor, ground line, drop shadow, or cast shadow.
+- Do not use magenta or similar hues anywhere on the character.
+
+No text. No watermark. No UI.

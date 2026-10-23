@@ -26,6 +26,7 @@ export const QC_NAMES: Record<string, { name: string; meaning: string }> = {
   'QC-11': { name: '실루엣 연속성', meaning: '인접 프레임 실루엣이 겹치는 비율의 최솟값. 낮으면 포즈가 순간이동하듯 바뀜' },
   'QC-12': { name: '색 일관성', meaning: '프레임 색 분포가 전체 중앙값과 겹치는 비율의 최솟값. 낮으면 어떤 프레임의 색이 달라짐' },
   'QC-13': { name: '움직임 크기', meaning: '프레임 사이 변화량. 너무 작으면 거의 멈춘 애니메이션' },
+  'QC-14': { name: '걸음 위상', meaning: '걷기가 프레임마다 같은 만큼 나아가는지. 0에 가까우면 고르고 클수록 멈칫하거나 순서가 엉킨 걸음. 아직 보정 중이라 검토(warn)까지만 표시' },
 }
 
 export const GRADE_LABEL: Record<Grade, string> = { pass: '통과', warn: '검토', fail: '실패', info: '참고', not_run: '미실행', skipped: '해당 없음' }
@@ -47,6 +48,7 @@ export function describeResult(r: QcResult): string {
     case 'QC-11': return `${name} ${pct(r.value)}`
     case 'QC-12': return `${name} ${pct(r.value)}`
     case 'QC-13': return `${name} ${Math.round(r.value * 1000) / 10}%`
+    case 'QC-14': return `${name} 편차 ${Math.round(r.value * 100) / 100}`
     default: return `${name} ${r.value}`
   }
 }
@@ -68,6 +70,7 @@ export const REGENERATE_LABEL: Record<string, string> = {
   duplicate_frames: '동작을 크게 재생성',
   identity_drift: '외형 유지 문구로 재생성',
   loop_closure: '루프가 이어지게 재생성',
+  gait_phase: '걸음이 고르게 나아가게 재생성',
 }
 
 export function recommendationLabel(r: Recommendation): string {

@@ -19,4 +19,11 @@ describe('motion QC presentation', () => {
     expect(recommendationLabel({ type: 'reprocess', code: 'align_per_frame' })).toBe(REPROCESS_LABEL.align_per_frame)
     expect(REGENERATE_LABEL.loop_closure).toContain('루프')
   })
+
+  it('names and describes the gait phase check (QC-14) and its recovery code', () => {
+    expect(QC_NAMES['QC-14'].meaning).toContain('걸음')
+    expect(describeResult({ id: 'QC-14', grade: 'fail', value: 0.83 })).toBe('걸음 위상 편차 0.83')
+    expect(recommendationLabel({ type: 'regenerate', code: 'gait_phase' })).toBe(REGENERATE_LABEL.gait_phase)
+    expect(REGENERATE_LABEL.gait_phase).toContain('걸음')
+  })
 })

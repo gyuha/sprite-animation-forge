@@ -70,7 +70,7 @@ from . import recovery, schemas
 from .pipeline.measure import measure_frame
 from .plan import process_params, resolve_unit, units
 from .prompt import direction_reference_unit
-from .qc import run_qc, select_best_attempt
+from .qc import gait_view, run_qc, select_best_attempt
 
 SOURCE_EXT = {"PNG": ".png", "JPEG": ".jpg", "WEBP": ".webp"}
 OUTPUT_FILES = ("raw.png", "clean.png", "sheet.png", "process.json", "qc-report.json")
@@ -238,7 +238,7 @@ def _apply_sets(params, sets):
 
 def process_attempt(cd, plan, action, direction, attempt=None, sets=None) -> dict:
     cd = Path(cd)
-    unit, _, _ = resolve_unit(plan, action, direction)
+    unit, facing, _ = resolve_unit(plan, action, direction)
     attempt = _pick_attempt(cd, unit, attempt)
     adir = _attempt_dir(cd, unit, attempt)
     if not (adir / "raw.png").exists():
@@ -263,7 +263,7 @@ def process_attempt(cd, plan, action, direction, attempt=None, sets=None) -> dic
             result.data["restored"] = (meta or {}).get("restored", [])  # made frames put back from their source (docs/14), always present
             (adir / "process.json").write_text(json.dumps(result.data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         report = run_qc(result, action=action, params=params, profile=profile, attempt=attempt,
-                        loop=act["loop"], qc_profile=act.get("qc_profile"))
+                        loop=act["loop"], qc_profile=act.get("qc_profile"), gait_view=gait_view(facing))
         entry = dict(mf.load(cd)["actions"].get(unit, {}))
         if sets:
             entry["reprocess_count"] = entry.get("reprocess_count", 0) + 1

@@ -1,4 +1,4 @@
-# template_version: action_prompt@4
+# template_version: action_prompt@5
 Create a 2x3 sprite animation grid of a 2D game character: walk cycle, 6 frames.
 
 REFERENCE IDENTITY
@@ -17,16 +17,24 @@ Match the art style, line weight, and shading of the reference image exactly.
 
 Strict side view (profile), character facing right. Orthographic, no perspective.
 
+GAIT GUIDE
+- The second attached image is a gait guide, not a character: a flat magenta #FF00FF sheet laid out like this grid, with one gray stick figure per cell showing the pose of that frame.
+- In every stick figure the dark gray arm and leg are the character's left arm and leg, the light gray ones the right arm and leg.
+- Give the character in each cell the same leg and arm positions as the stick figure in the same cell; keep the character's own design and proportions.
+- Never draw the stick figures, their gray lines or the guide's colors in the result.
+
 ACTION
 Walk cycle. Arms swing opposite to the legs. Body bobs slightly.
 Frame sequence:
-1. contact: front leg extended, heel touching the ground, back leg behind
-2. down: weight shifts onto the front leg, body at its lowest
-3. passing: back leg passes the supporting leg, body at its highest
-4. contact (opposite leg): other leg now in front, heel touching the ground
-5. down (opposite leg)
-6. passing (opposite leg)
-The last frame must flow seamlessly back into frame 1.
+1. contact: left foot forward, heel on the ground; right foot back on its toes; right arm forward, left arm back; legs at their widest
+2. down: weight settles onto the bent left leg, body lowest; right foot lifts off and starts swinging forward; legs half as wide as in frame 1; arms swinging back toward the sides
+3. up: right foot swings just past the left leg, off the ground; left leg straightens, body highest; legs half as wide as in frame 1; left arm slightly forward, right arm slightly back
+4. contact: frame 1 with left and right swapped (right foot forward, left arm forward)
+5. down: frame 2 with left and right swapped
+6. up: frame 3 with left and right swapped; it leads into frame 1 and is not the same pose as frame 1
+Every frame moves the stride forward by the same amount: one sixth of the cycle. Each arm swings opposite to its leg.
+Frames 4-6 are frames 1-3 with left and right swapped, legs and arms both; they are not copies.
+Frame 6 leads into frame 1 one even step later, just as frame 3 leads into frame 4.
 Animate in place: the character does not travel across the cell.
 Show the walk as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.
 

@@ -1,4 +1,4 @@
-"""Deterministic motion-quality metrics on the output frames (used by QC-10..QC-13 in qc.py).
+"""Deterministic motion-quality metrics on the output frames (used by QC-10..QC-14 in qc.py).
 
 All metrics work on 32x32 premultiplied-RGBA thumbnails (BOX resize, per channel) so they are cheap and
 independent of the cell size. They are *proxies*: they say "this does not look like a clean loop / the
@@ -12,6 +12,12 @@ character changed / nothing moves", never "this looks natural" (that needs the v
 ``palette_intersection(frames)``   minimum histogram intersection (64 RGB bins of the opaque pixels) between a frame
                                  and the median histogram: a frame drawn in different colours.
 ``motion_spread(frames)``        largest pairwise thumbnail distance: ~0 when nothing moves.
+``gait_phase_deviation(frames, view)``  QC-14: how far a walk's leg signal (``video_gait.leg_signal``, ``view`` ``"side"`` or
+                                 ``"front"``) is from the shape of an evenly timed cycle, both scaled to 0..1, at the best
+                                 cyclic shift (max abs difference). 0 = every frame advances the stride by the same amount;
+                                 ~1 = a stalled or shuffled cycle. None when there is no gait to read (< 4 frames, a blank frame,
+                                 or legs that hardly swing - the same limits ``video_gait.foot_strike_start`` uses).
+``gait_phase_from_signal(signal, view)``  the same on a leg signal that was already measured.
 
 Blank frames (no opaque pixel) are ignored by every metric; QC-05 reports them.
 """
@@ -20,6 +26,8 @@ from __future__ import annotations
 
 import numpy as np
 from PIL import Image
+
+from .video_gait import MIN_LEG_RANGE, MIN_SPREAD_CHANGE, leg_signal
 
 THUMB = 32
 ALPHA_MIN = 64
@@ -90,3 +98,28 @@ def motion_spread(frames) -> float:
     if len(t) < 2:
         return 0.0
     return max(_dist(t[i], t[j]) for i in range(len(t)) for j in range(i + 1, len(t)))
+
+
+def _even_gait(n: int, view: str) -> np.ndarray:
+    """Leg signal of an evenly timed cycle, scaled to 0..1. Side: the feet's spread |cos| (widest at contact);
+    front/back: the height difference of the feet |sin| (level at contact). n=6 -> side 1,0,0,1,0,0 / front 0,1,1,0,1,1."""
+    phase = 2 * np.pi * np.arange(n) / n
+    t = np.round(np.abs(np.cos(phase) if view == "side" else np.sin(phase)), 9)
+    return (t - t.min()) / (t.max() - t.min())
+
+
+def gait_phase_from_signal(signal, view: str) -> float | None:
+    if len(signal) < 4 or any(v is None for v in signal):
+        return None
+    s = np.asarray(signal, dtype=np.float64)
+    span = float(s.max() - s.min())
+    change = span / max(float(s.mean()), 1e-9) if view == "side" else span
+    if change < (MIN_SPREAD_CHANGE if view == "side" else MIN_LEG_RANGE):
+        return None
+    norm = (s - s.min()) / span
+    even = _even_gait(len(s), view)
+    return float(min(np.abs(norm - np.roll(even, k)).max() for k in range(len(s))))
+
+
+def gait_phase_deviation(frames, view: str) -> float | None:
+    return gait_phase_from_signal(leg_signal(frames, view), view)

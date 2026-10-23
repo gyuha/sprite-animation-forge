@@ -1,0 +1,58 @@
+Create a 2x3 sprite animation grid of a 2D game character: walk cycle, 6 frames.
+
+REFERENCE IDENTITY
+Same character as the attached reference image (Image 1). Preserve exactly:
+- silhouette: small chibi knight with a tall pointed hood and a long tattered cape
+- body proportions: short and stocky; head-to-body ratio: about 1:2.5
+- face: hidden by a steel visor helmet with three vertical slits
+- clothing: red pointed hood, red scarf-cape, steel plate armor, beige tunic with red stripes, brown belt with pouch
+- colors: primary #C8281E, #9A9CA0; secondary #E8D2A8, #6B3F1F
+- weapon: sheathed sword with a gold pommel, worn on the back
+- outline: dark brown outline; shading: soft painted cel shading
+Only pose, limb position, body lean, facial expression, weapon motion and secondary motion (hair, cloth) may change.
+Do not redesign, add, or remove any part of the character.
+
+Match the art style, line weight, and shading of the reference image exactly.
+
+Top-down RPG view from about 45 degrees above, character facing right, profile. Only the right side of the body is visible.
+
+DIRECTION REFERENCE
+- The second attached image shows one single pose of the same character from another direction.
+- Keep the identical proportions, clothing, colors, equipment, and art style.
+- Redraw only what the new facing direction reveals (for example the back of the cloak or the side profile). Do not redesign the character.
+
+ACTION
+Describe all motion relative to the direction the character is facing.
+Walk cycle. Arms swing opposite to the legs. Body bobs slightly.
+Frame sequence:
+1. contact: left foot forward, heel on the ground; right foot back on its toes; right arm forward, left arm back; legs at their widest
+2. down: weight settles onto the bent left leg, body lowest; right foot lifts off and starts swinging forward; legs half as wide as in frame 1; arms swinging back toward the sides
+3. up: right foot swings just past the left leg, off the ground; left leg straightens, body highest; legs half as wide as in frame 1; left arm slightly forward, right arm slightly back
+4. contact: frame 1 with left and right swapped (right foot forward, left arm forward)
+5. down: frame 2 with left and right swapped
+6. up: frame 3 with left and right swapped; it leads into frame 1 and is not the same pose as frame 1
+Every frame moves the stride forward by the same amount: one sixth of the cycle. Each arm swings opposite to its leg.
+Frames 4-6 are frames 1-3 with left and right swapped, legs and arms both; they are not copies.
+Frame 6 leads into frame 1 one even step later, just as frame 3 leads into frame 4.
+Animate in place: the character does not travel across the cell.
+Show the walk as if on a treadmill: the body stays in the same place in every cell, only the steps and the arm swing change.
+
+CONSISTENCY RULES
+- Identical character scale and camera distance in every cell.
+- The soles of the feet sit on the same horizontal baseline in every cell of a row.
+- Same facing direction (right) in every cell.
+- Full body visible in every cell. Nothing cropped.
+
+GRID RULES
+- 2 rows x 3 columns = 6 equal cells. Frames read left-to-right, top-to-bottom.
+- Exactly one complete character per cell.
+- Leave at least 8% empty background margin on every side of every cell.
+- No part of the character, weapon, or effect may cross into another cell.
+- No grid lines, borders, separators, labels, or numbers.
+
+BACKGROUND RULE
+- Fill the entire background with flat, solid magenta #FF00FF.
+- No gradient, texture, vignette, floor, ground line, drop shadow, or cast shadow.
+- Do not use magenta or similar hues anywhere on the character.
+
+No text. No watermark. No UI.

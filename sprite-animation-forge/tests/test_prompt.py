@@ -64,7 +64,7 @@ def test_prompt_empty_profile_fields_drop_their_line():
         assert f"{label}:" not in text
     assert "- face: hidden by a steel visor helmet with three vertical slits\n" in text
     bare = pr.build_prompt(side_plan(), None, "walk").text
-    assert "- " not in bare.split("REFERENCE IDENTITY")[1].split("ACTION")[0]
+    assert "- " not in bare.split("REFERENCE IDENTITY")[1].split("\n\n")[0]  # the identity block (a guide block has bullets of its own)
     assert "Preserve its design exactly." in bare
     assert pr.validate_prompt(bare) == []
 
@@ -216,8 +216,9 @@ def test_prompt_templates_load_from_package_resources():
 
 
 def test_prompt_template_version_format():
-    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@4"
-    assert pr.build_prompt(side_plan(), PROFILE, "walk").template_version == pr.PROMPT_TEMPLATE_VERSION
+    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@5"
+    assert pr.build_prompt(side_plan("idle"), PROFILE, "idle").template_version == pr.PROMPT_TEMPLATE_VERSION
+    assert pr.build_prompt(side_plan(), PROFILE, "walk").template_version == pr.GAIT_PROMPT_VERSION  # the side walk attaches the gait guide
 
 
 @pytest.mark.parametrize("style,phrase", [
@@ -251,7 +252,8 @@ def test_prompt_action_block_lists_every_pose(action):
         assert f"\n{i}. {pose}\n" in text
     assert f"\n{len(entry['poses']) + 1}. " not in text
     assert "Animate in place: the character does not travel across the cell." in text
-    loop_line = ("The last frame must flow seamlessly back into frame 1." if entry["loop"]
+    loop_line = ("Frame 6 leads into frame 1 one even step later, just as frame 3 leads into frame 4." if action == "walk"
+                 else "The last frame must flow seamlessly back into frame 1." if entry["loop"]
                  else f"This is a one-shot animation; frame {FRAMES[action]} is the final pose.")
     assert loop_line in text
     assert f", {FRAMES[action]} frames." in text.splitlines()[0]
@@ -298,6 +300,7 @@ RECOVERY_PHRASES = {
     "duplicate_frames": "Each frame must show a clearly different pose following the frame sequence.",
     "bg_mismatch": "The background must be one flat solid magenta #FF00FF across the whole image.",
     "identity_drift": "The previous attempt drifted from the reference design. Match the reference exactly, especially: hair, clothing.",
+    "gait_phase": "The previous attempt did not advance the walk evenly. Follow the frame sequence exactly: every frame moves the stride forward by the same amount, the second half of the frames repeats the first half with left and right swapped, and the last frame is not the same pose as frame 1.",
 }
 
 
@@ -410,7 +413,7 @@ def test_prompt_direction_reference_block_only_for_non_representative_directions
         assert res.references_needed == ["character", "direction:idle/down"]
         assert res.text.index("Top-down RPG view") < res.text.index("DIRECTION REFERENCE") < res.text.index("\nACTION\n")
     side = pr.build_prompt(side_plan(), PROFILE, "walk")
-    assert "DIRECTION REFERENCE" not in side.text and side.references_needed == ["character"]
+    assert "DIRECTION REFERENCE" not in side.text and side.references_needed == ["character", "gait_guide"]  # task #42
 
 
 def test_prompt_direction_reference_unit_skips_fx_and_respects_action_directions():
@@ -471,7 +474,7 @@ def test_prompt_shared_baseline_rule_is_dropped_for_airborne_actions(action, exp
 
 
 def test_prompt_template_version_is_action_prompt_3():
-    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@4"
+    assert pr.PROMPT_TEMPLATE_VERSION == "action_prompt@5"
 
 
 def test_plan_process_params_marks_airborne_actions_to_keep_vertical_travel():

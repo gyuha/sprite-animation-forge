@@ -1,0 +1,5 @@
+GAIT GUIDE
+- The second attached image is a gait guide, not a character: a flat {key_name} {key_hex} sheet laid out like this grid, with one gray stick figure per cell showing the pose of that frame.
+- In every stick figure the dark gray arm and leg are the character's left arm and leg, the light gray ones the right arm and leg.
+- Give the character in each cell the same leg and arm positions as the stick figure in the same cell; keep the character's own design and proportions.
+- Never draw the stick figures, their gray lines or the guide's colors in the result.

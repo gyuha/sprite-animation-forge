@@ -23,7 +23,7 @@ Recommendation (one JSON object)::
 
 ``code``: regenerate -> a docs/04 section 6 recovery code (``prompt.RECOVERY_CODES``); reprocess ->
 ``use_preserve`` | ``use_fit`` | ``align_per_frame`` | ``anchor_bottom`` | ``tighter_merge``
-(regenerate codes added for motion QC: ``loop_closure`` (QC-10), ``identity_drift`` (QC-11/12); QC-13 only warns, so it has no recommendation); force_accept -> ``forced_accept``.
+(regenerate codes added for motion QC: ``loop_closure`` (QC-10), ``identity_drift`` (QC-11/12), ``gait_phase`` (QC-14); QC-13 only warns, so it has no recommendation); force_accept -> ``forced_accept``.
 
 Notes on ambiguous spots
 ------------------------
@@ -101,6 +101,8 @@ def _candidates(report: dict, data: dict, params) -> list[dict]:
         out.append(_regen("scale_drift", "character size changes between frames; reprocessing keeps the ratio", "QC-02"))
     if failed("QC-10"):
         out.append(_regen("loop_closure", "the last frame does not lead back into the first frame (loop seam)", "QC-10"))
+    if failed("QC-14"):
+        out.append(_regen("gait_phase", "the walk does not advance the stride evenly from frame to frame (gait phase)", "QC-14"))
     drift = [q for q in ("QC-11", "QC-12") if failed(q)]
     if drift:
         out.append(_regen("identity_drift", "silhouette or colours jump between frames; match the reference exactly", drift[0]))

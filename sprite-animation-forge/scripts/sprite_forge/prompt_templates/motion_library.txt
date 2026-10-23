@@ -8,12 +8,12 @@ Idle breathing animation. Subtle motion only; the silhouette barely changes.
 
 [walk] frames=6 loop=true title=walk cycle
 Walk cycle. Arms swing opposite to the legs. Body bobs slightly.
-1. contact: front leg extended, heel touching the ground, back leg behind
-2. down: weight shifts onto the front leg, body at its lowest
-3. passing: back leg passes the supporting leg, body at its highest
-4. contact (opposite leg): other leg now in front, heel touching the ground
-5. down (opposite leg)
-6. passing (opposite leg)
+1. contact: left foot forward, heel on the ground; right foot back on its toes; right arm forward, left arm back; legs at their widest
+2. down: weight settles onto the bent left leg, body lowest; right foot lifts off and starts swinging forward; legs half as wide as in frame 1; arms swinging back toward the sides
+3. up: right foot swings just past the left leg, off the ground; left leg straightens, body highest; legs half as wide as in frame 1; left arm slightly forward, right arm slightly back
+4. contact: frame 1 with left and right swapped (right foot forward, left arm forward)
+5. down: frame 2 with left and right swapped
+6. up: frame 3 with left and right swapped; it leads into frame 1 and is not the same pose as frame 1
 
 [run] frames=6 loop=true title=run cycle
 Run cycle. Body leans forward about 10-15 degrees. Strong arm swing.

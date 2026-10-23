@@ -127,7 +127,7 @@ def test_sg_image_generate_attaches_the_guide_as_the_second_reference_for_a_stil
 
 
 def test_sg_image_generate_attaches_one_reference_for_a_grid_action(hero):
-    hero.ok("plan", "hero", "--actions", "idle,walk", "--set", "idle.method=breathe")
-    out = hero.ok("generate", "hero", "walk")
-    adir = hero.root / "hero/walk/attempts" / out["attempt"]
+    hero.ok("plan", "hero", "--actions", "idle,attack", "--set", "idle.method=breathe")
+    out = hero.ok("generate", "hero", "attack")  # not walk: a side walk attaches the gait guide (test_gait_guide.py)
+    adir = hero.root / "hero/attack/attempts" / out["attempt"]
     assert [p.name for p in adir.glob("ref-*.png")] == ["ref-01.png"]

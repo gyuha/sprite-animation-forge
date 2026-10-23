@@ -47,6 +47,7 @@ from PIL import Image
 from . import manifest as mf
 from .errors import EXIT_PRECONDITION, EXIT_PROVIDER, ForgeError
 from .fsutil import allocate_attempt, atomic_write_json, atomic_write_png, atomic_write_text, file_lock, sha256_file
+from .gait_guide import make_gait_guide
 from .layout_guide import make_layout_guide
 from .plan import resolve_unit
 from .prompt import VIDEO_PROMPT_VERSION, PromptResult, build_canonical_prompt, build_prompt, build_video_prompt
@@ -260,6 +261,14 @@ def generate_unit(cd, plan, profile, action, direction=None, extra=None, recover
         for role in pr.references_needed:
             if role == "character":
                 refs.append(keyed)
+                continue
+            if role == "gait_guide":
+                act = plan["actions"][action]
+                rows, cols = (int(x) for x in act["grid"].split("x"))
+                path = Path(tmp) / "gait-guide.png"
+                make_gait_guide(plan["key_color"], rows, cols, act["frames"], facing=direction or plan["facing"]).save(path, format="PNG")
+                refs.append(path)
+                labels[str(path)] = "gait-guide"
                 continue
             if role == "layout_guide":
                 path = Path(tmp) / "layout-guide.png"

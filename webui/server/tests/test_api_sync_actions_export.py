@@ -29,7 +29,7 @@ def test_api_sync_prompt_preview(client, hero):
     r = client.post(char_url(hero, ACT + "/prompt"), json={"extra": "swing wider", "recovery": ["edge_touch"]})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert "swing wider" in body["prompt"] and body["references_needed"] == ["character"]
+    assert "swing wider" in body["prompt"] and body["references_needed"] == ["character", "gait_guide"]  # side walk (task #42)
     assert isinstance(body["warnings"], list)
     assert client.post(char_url(hero, ACT + "/prompt")).status_code == 200  # body optional
 

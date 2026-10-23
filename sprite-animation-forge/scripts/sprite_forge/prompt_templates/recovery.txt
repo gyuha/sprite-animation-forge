@@ -7,6 +7,7 @@ empty_frame | Every one of the {frames} used cells must contain the character.
 duplicate_frames | Each frame must show a clearly different pose following the frame sequence.
 bg_mismatch | The background must be one flat solid {key_name} {key_hex} across the whole image.
 loop_closure | The last frame must lead smoothly back into the first frame: draw the pose in the last cell as the step just before the first cell's pose, so the animation loops without a jump.
+gait_phase | The previous attempt did not advance the walk evenly. Follow the frame sequence exactly: every frame moves the stride forward by the same amount, the second half of the frames repeats the first half with left and right swapped, and the last frame is not the same pose as frame 1.
 identity_drift | The previous attempt drifted from the reference design. Match the reference exactly, especially: {fields}.
 [identity_drift_no_fields]
 The previous attempt drifted from the reference design. Match the reference exactly.
